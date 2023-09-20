@@ -17,4 +17,18 @@ public class ResVo<T> {
         return resVo;
     }
 
+    public static ResVo<?> error(int code, String codeDesc) {
+        ResVo<?> resVo = new ResVo<>();
+        resVo.setCode(code);
+        resVo.setCodeDesc(codeDesc);
+        return resVo;
+    }
+
+    public static ResVo<?> error(String codeDesc) {
+        ResVo<?> resVo = new ResVo<>();
+        resVo.setCode(500);
+        resVo.setCodeDesc(codeDesc);
+        return resVo;
+    }
+
 }
