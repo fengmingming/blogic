@@ -1,0 +1,21 @@
+server:
+  port: 6060
+
+spring:
+  application:
+    name: blogic
+  jpa:
+    show-sql: true
+  r2dbc:
+    url: r2dbc:mysql://127.0.0.1:3306/blogic?serverZoneId=Asia/Shanghai&characterEncoding=UTF-8&useUnicode=true
+    username: root
+    password: 123456
+    name: r2dbc
+    pool:
+      validation-query: SELECT 1
+      enabled: true
+
+logging:
+  level:
+    root: info
+    blogic: debug
