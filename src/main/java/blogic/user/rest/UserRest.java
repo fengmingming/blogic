@@ -19,7 +19,7 @@ public class UserRest {
 
     @GetMapping("/Users")
     public Mono<ResVo<List<User>>> getUsers() {
-        return userRepository.findAll().collectList().map(it -> ResVo.success(it)).contextCapture();
+        return Mono.error(new RuntimeException("users"));
     }
 
 }
