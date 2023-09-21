@@ -17,6 +17,11 @@ public class ResVo<T> {
         return resVo;
     }
 
+    public static <T> ResVo<T> success() {
+        ResVo<T> resVo = new ResVo<>();
+        return resVo;
+    }
+
     public static ResVo<?> error(int code, String codeDesc) {
         ResVo<?> resVo = new ResVo<>();
         resVo.setCode(code);

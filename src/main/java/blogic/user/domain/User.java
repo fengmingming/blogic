@@ -2,6 +2,7 @@ package blogic.user.domain;
 
 import blogic.core.domain.BaseEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,6 +16,7 @@ public class User extends BaseEntity {
     @GeneratedValue
     private Long id;
     @Column(name = "phone")
+    @NotBlank
     private String phone;
     @Column(name = "name")
     private String name;
