@@ -8,8 +8,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
@@ -41,6 +43,21 @@ public class UserRest {
         user.setPassword(req.getPassword());
         user.setCreateTime(LocalDateTime.now());
         return userService.createUser(user).map(it -> ResVo.success());
+    }
+
+    @Setter
+    @Getter
+    public static class UpdateUserReq {
+        @Length(max = 100)
+        private String name;
+    }
+
+    @PutMapping("/Users")
+    public Mono<ResVo> updateUser(@RequestBody @Valid UpdateUserReq req) {
+        UserService.UpdateUserCommand command = new UserService.UpdateUserCommand();
+        command.setUserId(1L);
+        command.setName(req.getName());
+        return userService.updateUser(command).map(it -> ResVo.success());
     }
 
 }
