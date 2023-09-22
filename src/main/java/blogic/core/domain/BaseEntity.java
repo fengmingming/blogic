@@ -1,9 +1,9 @@
 package blogic.core.domain;
 
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.relational.core.mapping.Column;
 
 import java.time.LocalDateTime;
 
@@ -11,12 +11,12 @@ import java.time.LocalDateTime;
 @Getter
 public class BaseEntity {
 
-    @Column(name = "create_time", updatable = false)
+    @Column("create_time")
     @NotNull
     private LocalDateTime createTime;
-    @Column(name = "update_time")
+    @Column("update_time")
     private LocalDateTime updateTime;
-    @Column(name = "deleted", nullable = false)
+    @Column("deleted")
     @NotNull
     private Boolean deleted = false;
 
