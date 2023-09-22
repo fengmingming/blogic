@@ -42,7 +42,7 @@ public class UserRest {
         user.setName(req.getName());
         user.setPassword(req.getPassword());
         user.setCreateTime(LocalDateTime.now());
-        return userService.createUser(user).map(it -> ResVo.success(it));
+        return userService.createUser(user).map(it -> ResVo.success());
     }
 
     @Setter
