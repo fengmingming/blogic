@@ -39,6 +39,7 @@ public class FuncTree {
     @Getter
     public static class Query implements Comparable<Query>{
         private List<Param> params = new ArrayList<>();
+        private Authorities authorities = new Authorities();
 
         @Override
         public int compareTo(Query two) {
@@ -127,7 +128,11 @@ public class FuncTree {
                 if(log.isDebugEnabled()) {
                     log.debug("build query kvArray {}", Stream.of(kvArray).collect(Collectors.joining(",")));
                 }
-                q.getParams().addAll(Stream.of(kvArray).filter(it -> StrUtil.isNotBlank(it)).map(it -> it.trim()).map(it -> {
+                Stream<String> stream = Stream.of(kvArray).filter(it -> StrUtil.isNotBlank(it)).map(it -> it.trim());
+                q.getAuthorities().getAuthorities().addAll(stream.filter(it -> it.startsWith("authorities"))
+                        .flatMap(it -> Stream.of(it.split(","))).filter(it -> StrUtil.isNotBlank(it))
+                        .map(it -> it.trim()).collect(Collectors.toSet()));
+                q.getParams().addAll(stream.filter(it -> !it.startsWith("authorities")).map(it -> {
                     int notIndex = it.indexOf(Param.NOT);
                     int eqIndex = it.indexOf(Param.EQ);
                     Param p = new Param();
@@ -173,10 +178,39 @@ public class FuncTree {
         private String op;
     }
 
+    @Setter
+    @Getter
+    public static class Authorities {
+
+        private Set<String> authorities = new HashSet<>();
+
+        /**
+         * @param authorities 用户拥有的权限
+         * */
+        public boolean authenticate(List<String> authorities) {
+            if(this.authorities.size() == 0)return true;
+            return this.authorities.stream().filter(authority -> authorities.contains(authority)).findAny().isPresent();
+        }
+    }
+
+    public static Map<String, FuncTree> buildFuncTree(Collection<String> urls) {
+        Map<String, FuncTree> funcTree = new HashMap<>();
+        urls.stream().forEach(url -> doBuildFuncTree(funcTree, url));
+        funcTree.values().stream().forEach(it -> doQueriesSort(it));
+        return funcTree;
+    }
+
+    protected static void doQueriesSort(FuncTree ft) {
+        ft.getMethods().values().stream().forEach(it -> it.stream().sorted(Query::compareTo));
+        if(ft.getChild().size() > 0) {
+            ft.getChild().values().stream().forEach(it -> doQueriesSort(it));
+        }
+    }
+
     /**
      * 构建路径树
      * */
-    public static void buildFuncTree(Map<String, FuncTree> funcTree, String url) {
+    protected static void doBuildFuncTree(Map<String, FuncTree> funcTree, String url) {
         //url格式校验
         int colonIndex = url.indexOf(":");
         int quMark = url.indexOf("?");
@@ -223,9 +257,11 @@ public class FuncTree {
                 }
                 Query queryObj = Query.buildQuery(query);
                 synchronized (queryList) {
-                    if(!queryList.contains(queryObj)) {
+                    Optional<Query> existQuery = queryList.stream().filter(it -> it.equals(queryObj)).findFirst();
+                    if(existQuery.isPresent()) {
+                        existQuery.get().getAuthorities().getAuthorities().addAll(queryObj.getAuthorities().getAuthorities());
+                    }else {
                         queryList.add(queryObj);
-                        queryList.sort((a, b) -> a.compareTo(b));
                     }
                 }
             }
@@ -237,12 +273,12 @@ public class FuncTree {
     /**
      * 搜索路径树中是否存在给定的路径树
      * */
-    public static boolean match(Map<String, FuncTree> funcTrees, FuncTree funcTree) {
+    public static Optional<Authorities> match(Map<String, FuncTree> funcTrees, FuncTree funcTree) {
         FuncTree ft = funcTrees.get(funcTree.getNodeName());
         if(ft == null) {
             ft = funcTrees.get(MATCH_ALL_KEY);
         }
-        if(ft == null) return false;
+        if(ft == null) return Optional.empty();
         if(funcTree.child.size() == 0) {
             String method = funcTree.getMethods().keySet().stream().findFirst().get();
             Query query = funcTree.getMethods().get(method).get(0);
@@ -251,14 +287,14 @@ public class FuncTree {
                 method = MATCH_ALL_KEY;
                 queryList = ft.getMethods().get(method);
             }
-            if(queryList == null) return false;
+            if(queryList == null) return Optional.empty();
             Optional<Query> queryOpt = queryList.stream().filter(it -> it.match(query)).findFirst();
             if(log.isDebugEnabled() && queryOpt.isPresent()) {
                 log.debug("匹配路径 {} 源路径 {}", String.format("%s:%s%s", method, ft.getBranch(), queryOpt.get().toString()),
                         String.format("%s:%s%s", funcTree.getMethods().keySet().stream().findFirst().get(),
                                 funcTree.getBranch(), query.toString()));
             }
-            return queryOpt.isPresent();
+            return queryOpt.isPresent()?Optional.of(queryOpt.get().getAuthorities()):Optional.empty();
         }else {
             return match(ft.getChild(), funcTree.getChild().entrySet().stream().findFirst().get().getValue());
         }
