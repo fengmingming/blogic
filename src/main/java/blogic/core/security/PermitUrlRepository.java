@@ -8,10 +8,10 @@ import reactor.core.publisher.Mono;
  * */
 public interface PermitUrlRepository {
     
-    public Flux<String> findAll(Long userId);
+    public Flux<String> findAll();
 
-    default Mono<FuncTrees> findFuncTrees(Long userId) {
-        return FuncTrees.buildFuncTrees(findAll(userId));
+    default Mono<FuncTrees> findFuncTrees() {
+        return FuncTrees.buildFuncTrees(findAll());
     }
 
 }

@@ -16,12 +16,13 @@ import reactor.core.publisher.Mono;
 public class AuthenticateFilter implements WebFilter {
 
     private final RoleAndPermissionsRepository roleAndPermissionsRepository;
+    private final PermitUrlRepository permitUrlRepository;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-
+        String path = exchange.getRequest().getPath().pathWithinApplication().value();
         String authorization = exchange.getRequest().getHeaders().getFirst("Authorization");
-        return chain.filter(exchange);
+        //permitUrlRepository.findFuncTrees().map(ft -> );
     }
 
 }
