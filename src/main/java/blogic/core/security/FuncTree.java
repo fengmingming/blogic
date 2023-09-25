@@ -7,10 +7,17 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+
+/**
+ * no thread-safe
+ * func tree
+ * 通过特定url构建一个基于RBAC的鉴权类
+ * url: methodName:url?param[=|!=|!]value&authorities=ROLE_A,ROLE_B,p1,p2,p3
+ * eg: POST:/a/b/c?id=1&!name&name!=value
+ * */
 @Setter
 @Getter
 @Slf4j
@@ -23,9 +30,9 @@ public class FuncTree {
     private String nodeName;
     private String branch;
     //子节点
-    private Map<String, FuncTree> child = new ConcurrentHashMap<>();
+    private FuncTrees child = new FuncTrees();
     private boolean matchAll = false;
-    private Map<String, List<Query>> methods = new ConcurrentHashMap<>();
+    private Map<String, List<Query>> methods = new HashMap<>();
 
     public void setNodeName(String nodeName) {
         this.nodeName = nodeName;
@@ -190,113 +197,6 @@ public class FuncTree {
         public boolean authenticate(List<String> authorities) {
             if(this.authorities.size() == 0)return true;
             return this.authorities.stream().filter(authority -> authorities.contains(authority)).findAny().isPresent();
-        }
-    }
-
-    public static Map<String, FuncTree> buildFuncTree(Collection<String> urls) {
-        Map<String, FuncTree> funcTree = new HashMap<>();
-        urls.stream().forEach(url -> doBuildFuncTree(funcTree, url));
-        funcTree.values().stream().forEach(it -> doQueriesSort(it));
-        return funcTree;
-    }
-
-    protected static void doQueriesSort(FuncTree ft) {
-        ft.getMethods().values().stream().forEach(it -> it.stream().sorted(Query::compareTo));
-        if(ft.getChild().size() > 0) {
-            ft.getChild().values().stream().forEach(it -> doQueriesSort(it));
-        }
-    }
-
-    /**
-     * 构建路径树
-     * */
-    protected static void doBuildFuncTree(Map<String, FuncTree> funcTree, String url) {
-        //url格式校验
-        int colonIndex = url.indexOf(":");
-        int quMark = url.indexOf("?");
-        int pathS = 0;
-        int pathE = url.length();
-        String method = MATCH_ALL_KEY;
-        String query = null;
-        if(colonIndex > 0) {
-            method = url.substring(0, colonIndex).toUpperCase();
-            pathS = colonIndex + 1;
-        }
-        if(quMark > 0 && quMark < url.length() - 1) {
-            query = url.substring(quMark + 1);
-            pathE = quMark;
-        }
-        if(log.isDebugEnabled()) {
-            log.debug("colonIndex {}, quMark {}, method {}, query {}, pathS {}, pathE {}",
-                    colonIndex, quMark, method, query, pathS, pathE);
-        }
-        String path = url.substring(pathS, pathE);
-        String[] nodeArray = path.split("/");
-        List<String> nodeList = Stream.of(nodeArray).filter(it -> StrUtil.isNotBlank(it)).map(it -> it.trim()).collect(Collectors.toList());
-        Map<String, FuncTree> child = funcTree;
-        FuncTree parent = null;
-        int deepIndex = nodeList.size();
-        for(int i = 0;i < deepIndex;i++) {
-            String nodeName = nodeList.get(i);
-            FuncTree node = child.get(nodeName);
-            if(node == null) {
-                node = new FuncTree();
-                node.setNodeName(nodeName);
-                node.setBranch(String.format("%s/%s", parent==null?"":parent.getBranch(), nodeName));
-                if(child.putIfAbsent(nodeName, node) != null) {
-                    node = child.get(nodeName);
-                }
-            }
-            if(i == deepIndex - 1) {
-                List<Query> queryList = node.getMethods().get(method);
-                if(queryList == null) {
-                    queryList = new ArrayList<>();
-                    if(node.getMethods().putIfAbsent(method, queryList) != null) {
-                        queryList = node.getMethods().get(method);
-                    }
-                }
-                Query queryObj = Query.buildQuery(query);
-                synchronized (queryList) {
-                    Optional<Query> existQuery = queryList.stream().filter(it -> it.equals(queryObj)).findFirst();
-                    if(existQuery.isPresent()) {
-                        existQuery.get().getAuthorities().getAuthorities().addAll(queryObj.getAuthorities().getAuthorities());
-                    }else {
-                        queryList.add(queryObj);
-                    }
-                }
-            }
-            parent = node;
-            child = node.getChild();
-        }
-    }
-
-    /**
-     * 搜索路径树中是否存在给定的路径树
-     * */
-    public static Optional<Authorities> match(Map<String, FuncTree> funcTrees, FuncTree funcTree) {
-        FuncTree ft = funcTrees.get(funcTree.getNodeName());
-        if(ft == null) {
-            ft = funcTrees.get(MATCH_ALL_KEY);
-        }
-        if(ft == null) return Optional.empty();
-        if(funcTree.child.size() == 0) {
-            String method = funcTree.getMethods().keySet().stream().findFirst().get();
-            Query query = funcTree.getMethods().get(method).get(0);
-            List<Query> queryList = ft.getMethods().get(method);
-            if(queryList == null) {
-                method = MATCH_ALL_KEY;
-                queryList = ft.getMethods().get(method);
-            }
-            if(queryList == null) return Optional.empty();
-            Optional<Query> queryOpt = queryList.stream().filter(it -> it.match(query)).findFirst();
-            if(log.isDebugEnabled() && queryOpt.isPresent()) {
-                log.debug("匹配路径 {} 源路径 {}", String.format("%s:%s%s", method, ft.getBranch(), queryOpt.get().toString()),
-                        String.format("%s:%s%s", funcTree.getMethods().keySet().stream().findFirst().get(),
-                                funcTree.getBranch(), query.toString()));
-            }
-            return queryOpt.isPresent()?Optional.of(queryOpt.get().getAuthorities()):Optional.empty();
-        }else {
-            return match(ft.getChild(), funcTree.getChild().entrySet().stream().findFirst().get().getValue());
         }
     }
 
