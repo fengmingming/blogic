@@ -23,6 +23,7 @@ public class AuthenticateFilter implements WebFilter {
         String path = exchange.getRequest().getPath().pathWithinApplication().value();
         String authorization = exchange.getRequest().getHeaders().getFirst("Authorization");
         //permitUrlRepository.findFuncTrees().map(ft -> );
+        return chain.filter(exchange);
     }
 
 }
