@@ -3,6 +3,8 @@ package blogic.core.security;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.Set;
+
 @Getter
 @Builder
 public class TokenInfo {
@@ -12,5 +14,6 @@ public class TokenInfo {
 
     private Long userId;
     private TerminalTypeEnum terminal;
+    private Set<String> authorities;
 
 }
