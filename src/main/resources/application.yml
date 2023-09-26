@@ -4,8 +4,10 @@ server:
 spring:
   application:
     name: blogic
-  jpa:
-    show-sql: true
+  webflux:
+    basePath: /blogic
+  messages:
+    basename: codedException
   r2dbc:
     url: r2dbc:mysql://127.0.0.1:3306/blogic?serverZoneId=Asia/Shanghai&characterEncoding=UTF-8&useUnicode=true
     username: root
@@ -19,3 +21,7 @@ logging:
   level:
     root: info
     blogic: debug
+
+blogic:
+  permitUrls:
+    - "/blogic/login"

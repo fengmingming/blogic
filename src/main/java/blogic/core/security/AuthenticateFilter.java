@@ -18,11 +18,11 @@ import java.util.Map;
 import java.util.Optional;
 
 @Component
-@Setter
 @RequiredArgsConstructor
 @Slf4j
 public class AuthenticateFilter implements WebFilter {
 
+    static final String TOKEN_INFO_ATTRIBUTE_KEY = AuthenticateFilter.class.getName() + ".TOKEN_INFO";
     private final RoleAndPermissionsRepository roleAndPermissionsRepository;
     private final PermitUrlRepository permitUrlRepository;
 
@@ -31,27 +31,45 @@ public class AuthenticateFilter implements WebFilter {
         ServerHttpRequest request = exchange.getRequest();
         String funcUrl = buildFuncUrl(request.getMethod().name(), request.getPath().value(), request.getQueryParams());
         FuncTrees reqFT = FuncTrees.buildFuncTrees(Arrays.asList(funcUrl));
-        permitUrlRepository.findFuncTrees();
-        return chain.filter(exchange);
+        Mono<Void> authenticateMono = authenticate(exchange, reqFT).flatMap(it -> {
+            if(it) {
+                return chain.filter(exchange);
+            }else {
+                return Mono.error(new UnauthorizedException());
+            }
+        });
+        return permitUrlRepository.findFuncTrees().flatMap(fts -> {
+            Optional<FuncTree.Authorities> authoritiesOpt = FuncTrees.match(fts, reqFT.firstFuncTree().get());
+            if(authoritiesOpt.isPresent()) {
+                return chain.filter(exchange);
+            }else {
+                return authenticateMono;
+            }
+        }).switchIfEmpty(authenticateMono);
     }
 
     protected String buildFuncUrl(String method, String path, Map<String, List<String>> params) {
         StringBuilder sb = new StringBuilder(method);
         sb.append(":").append(path).append("?");
-
-        return sb.toString();
+        params.entrySet().stream().forEach(entry -> {
+            entry.getValue().stream().forEach(value -> {
+                sb.append(entry.getKey()).append("=").append(value).append("&");
+            });
+        });
+        return sb.deleteCharAt(sb.length() - 1).toString();
     }
 
-    protected Mono<Boolean> authenticate(ServerHttpRequest request, FuncTrees reqFT) {
-        String authorization = request.getHeaders().getFirst("Authorization");
+    protected Mono<Boolean> authenticate(ServerWebExchange exchange, FuncTrees reqFT) {
+        String authorization = exchange.getRequest().getHeaders().getFirst("Authorization");
         if(StrUtil.isBlank(authorization)) return Mono.just(Boolean.FALSE);
         String token = JwtTokenUtil.getTokenFromAuthorization(authorization);
         TokenInfo tokenInfo = JwtTokenUtil.getTokenInfo(token);
+        exchange.getAttributes().putIfAbsent(TOKEN_INFO_ATTRIBUTE_KEY, tokenInfo);
         return roleAndPermissionsRepository.findFuncTrees(tokenInfo.getUserId()).map(fts -> {
             Optional<FuncTree.Authorities> authoritiesOpt = FuncTrees.match(fts, reqFT.firstFuncTree().get());
             if(!authoritiesOpt.isPresent()) return false;
             return CollectionUtil.intersection(authoritiesOpt.get().getAuthorities(), tokenInfo.getAuthorities()).size() > 0;
-        });
+        }).defaultIfEmpty(true);
     }
 
 }
