@@ -2,9 +2,12 @@ package blogic.core.security;
 
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
@@ -12,6 +15,7 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +29,7 @@ public class AuthenticateFilter implements WebFilter {
     static final String TOKEN_INFO_ATTRIBUTE_KEY = AuthenticateFilter.class.getName() + ".TOKEN_INFO";
     private final RoleAndPermissionsRepository roleAndPermissionsRepository;
     private final PermitUrlRepository permitUrlRepository;
+    private final JwtKeyProperties jwtKeyProperties;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
@@ -45,7 +50,7 @@ public class AuthenticateFilter implements WebFilter {
             }else {
                 return authenticateMono;
             }
-        }).switchIfEmpty(authenticateMono);
+        });
     }
 
     protected String buildFuncUrl(String method, String path, Map<String, List<String>> params) {
@@ -63,13 +68,24 @@ public class AuthenticateFilter implements WebFilter {
         String authorization = exchange.getRequest().getHeaders().getFirst("Authorization");
         if(StrUtil.isBlank(authorization)) return Mono.just(Boolean.FALSE);
         String token = JwtTokenUtil.getTokenFromAuthorization(authorization);
+        if(!JwtTokenUtil.validToken(token, jwtKeyProperties.getKey().getBytes(StandardCharsets.UTF_8))) {
+            return Mono.just(Boolean.FALSE);
+        }
         TokenInfo tokenInfo = JwtTokenUtil.getTokenInfo(token);
         exchange.getAttributes().putIfAbsent(TOKEN_INFO_ATTRIBUTE_KEY, tokenInfo);
         return roleAndPermissionsRepository.findFuncTrees(tokenInfo.getUserId()).map(fts -> {
             Optional<FuncTree.Authorities> authoritiesOpt = FuncTrees.match(fts, reqFT.firstFuncTree().get());
-            if(!authoritiesOpt.isPresent()) return false;
+            if(!authoritiesOpt.isPresent()) return true;
             return CollectionUtil.intersection(authoritiesOpt.get().getAuthorities(), tokenInfo.getAuthorities()).size() > 0;
-        }).defaultIfEmpty(true);
+        });
+    }
+
+    @EnableConfigurationProperties
+    @ConfigurationProperties(prefix = "blogic.jwt")
+    @Getter
+    @Setter
+    public static class JwtKeyProperties {
+        private String key;
     }
 
 }

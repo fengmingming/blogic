@@ -36,7 +36,7 @@ public class JwtTokenUtil {
 
     static String getTokenFromAuthorization(String authorization) {
         if(StrUtil.isNotBlank(authorization) && authorization.length() > 8 && authorization.startsWith("Bearer ")){
-            return authorization.substring(8).trim();
+            return authorization.substring(7).trim();
         }
         throw new IllegalArgumentException("Authorization format is incorrect");
     }

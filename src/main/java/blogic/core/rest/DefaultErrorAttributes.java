@@ -48,6 +48,7 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
     }
 
     private String doGetMessage(Throwable e, Locale locale) {
+        log.error("", e);
         if(e instanceof CodedException ce) {
             return codedExceptionMessageSource.getMessage(String.valueOf(ce.getCode()),
                     ce.getTemplateArgs(), String.format("service exception [%d]", ce.getCode()), locale);

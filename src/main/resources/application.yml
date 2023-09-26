@@ -23,5 +23,7 @@ logging:
     blogic: debug
 
 blogic:
+  jwt:
+    key: 123456
+  errorMessageHandle: false
   permitUrls:
-    - "/blogic/login"
