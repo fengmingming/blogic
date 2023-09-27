@@ -41,7 +41,7 @@ public class FuncTrees extends HashMap<String, FuncTree> {
         //url格式校验
         int colonIndex = url.indexOf(":");
         int quMark = url.indexOf("?");
-        if(colonIndex > quMark) {
+        if(quMark > 0 && colonIndex > quMark) {
             colonIndex = -1;
         }
         int pathS = 0;

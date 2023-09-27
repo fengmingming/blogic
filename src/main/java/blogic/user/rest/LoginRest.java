@@ -4,7 +4,9 @@ import blogic.core.rest.ResVo;
 import blogic.core.security.AuthenticateFilter;
 import blogic.core.security.JwtTokenUtil;
 import blogic.core.security.TerminalTypeEnum;
+import blogic.core.security.TokenInfo;
 import blogic.user.domain.repository.UserRepository;
+import blogic.user.service.UserService;
 import cn.hutool.crypto.digest.BCrypt;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
@@ -28,7 +30,7 @@ public class LoginRest {
     @Autowired
     private MessageSource messageSource;
     @Autowired
-    private AuthenticateFilter.JwtKeyProperties jwtKeyProperties;
+    private UserService userService;
 
     @Setter
     @Getter
@@ -43,12 +45,12 @@ public class LoginRest {
     }
 
     @PostMapping("/login")
-    public Mono<ResVo<?>> login(Locale locale, @RequestBody LoginReq req) {
-        return userRepository.findByPhone(req.getPhone()).map(user -> {
+    public Mono<ResVo<?>> login(@RequestBody LoginReq req, Locale locale) {
+        return userRepository.findByPhone(req.getPhone()).flatMap(user -> {
             if(BCrypt.checkpw(req.getPassword(), user.getPassword())) {
-                return ResVo.success(JwtTokenUtil.generateToken(user.getId(), req.getTerminal(), jwtKeyProperties.getKey().getBytes(StandardCharsets.UTF_8)));
+                return userService.createToken(user.getId(), req.getTerminal()).map(token -> ResVo.success(token));
             }else {
-                return ResVo.error(messageSource.getMessage("1001", null, locale));
+                return Mono.just(ResVo.error(messageSource.getMessage("1001", null, locale)));
             }
         }).defaultIfEmpty(ResVo.error(messageSource.getMessage("1002", null, locale)));
     }

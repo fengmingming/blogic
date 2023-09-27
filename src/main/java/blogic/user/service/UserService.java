@@ -1,5 +1,8 @@
 package blogic.user.service;
 
+import blogic.core.security.AuthenticateFilter;
+import blogic.core.security.JwtTokenUtil;
+import blogic.core.security.TerminalTypeEnum;
 import blogic.user.domain.User;
 import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.util.StrUtil;
@@ -15,12 +18,16 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
+
 @Component
 @Validated
 public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private AuthenticateFilter.JwtKeyProperties jwtKeyProperties;
 
     @Transactional
     public Mono<User> createUser(@Valid User user) {
@@ -45,6 +52,11 @@ public class UserService {
         return userRepository.findById(com.getUserId()).doOnNext(user -> {
             user.setName(com.getName());
         }).flatMap(user -> userRepository.save(user));
+    }
+
+    public Mono<String> createToken(Long userId, TerminalTypeEnum terminal) {
+        return userRepository.findById(userId).map(user -> JwtTokenUtil.generateToken(user.getId(),
+                terminal, jwtKeyProperties.getKey().getBytes(StandardCharsets.UTF_8)));
     }
 
 }
