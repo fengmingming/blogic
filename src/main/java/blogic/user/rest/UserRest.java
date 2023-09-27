@@ -1,6 +1,7 @@
 package blogic.user.rest;
 
 import blogic.core.rest.ResVo;
+import blogic.core.security.TokenInfo;
 import blogic.user.domain.User;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserService;
@@ -53,9 +54,9 @@ public class UserRest {
     }
 
     @PutMapping("/Users")
-    public Mono<ResVo> updateUser(@RequestBody @Valid UpdateUserReq req) {
+    public Mono<ResVo> updateUser(TokenInfo tokenInfo, @RequestBody @Valid UpdateUserReq req) {
         UserService.UpdateUserCommand command = new UserService.UpdateUserCommand();
-        command.setUserId(1L);
+        command.setUserId(tokenInfo.getUserId());
         command.setName(req.getName());
         return userService.updateUser(command).map(it -> ResVo.success());
     }

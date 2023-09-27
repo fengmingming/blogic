@@ -11,6 +11,7 @@ import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.context.MessageSource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -39,11 +40,11 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
         }else {
             result.put("code", superResult.get("status"));
         }
-        List<Locale.LanguageRange> languages = request.headers().acceptLanguage();
-        result.put("status", 200);
-        result.put("codeDesc", doGetMessage(e, languages.size() > 0?
-                Locale.forLanguageTag(languages.get(0).getRange())
-                :Locale.getDefault()));
+        List<Locale> locales = request.headers().acceptLanguage().stream()
+                .map(range -> Locale.forLanguageTag(range.getRange()))
+                .filter(locale -> StringUtils.hasText(locale.getDisplayName())).toList();
+        result.put("status", 500);
+        result.put("codeDesc", doGetMessage(e, locales.size() > 0? locales.get(0): Locale.getDefault()));
         return result;
     }
 

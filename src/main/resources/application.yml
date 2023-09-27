@@ -27,3 +27,4 @@ blogic:
     key: 123456
   errorMessageHandle: false
   permitUrls:
+    - POST:/blogic/login
