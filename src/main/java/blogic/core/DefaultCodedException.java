@@ -1,4 +1,4 @@
-package blogic.core.rest;
+package blogic.core;
 
 import lombok.Getter;
 import lombok.Setter;

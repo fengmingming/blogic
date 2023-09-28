@@ -1,6 +1,6 @@
 package blogic.core.security;
 
-import blogic.core.rest.CodedException;
+import blogic.core.CodedException;
 
 public class UnauthorizedException extends RuntimeException implements CodedException {
 

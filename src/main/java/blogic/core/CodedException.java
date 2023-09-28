@@ -1,4 +1,4 @@
-package blogic.core.rest;
+package blogic.core;
 
 public interface CodedException {
 
