@@ -6,11 +6,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.context.MessageSource;
 import org.springframework.dao.DataAccessException;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -22,7 +20,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Component
 @Slf4j
 @RequiredArgsConstructor
 public class DefaultErrorAttributes extends org.springframework.boot.web.reactive.error.DefaultErrorAttributes {
@@ -71,7 +68,6 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
         return "service exception";
     }
 
-    @EnableConfigurationProperties
     @ConfigurationProperties(prefix = "blogic")
     @Setter
     @Getter

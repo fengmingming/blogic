@@ -7,9 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
@@ -22,7 +20,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Component
 @RequiredArgsConstructor
 @Slf4j
 public class AuthenticateFilter implements WebFilter {
@@ -87,7 +84,6 @@ public class AuthenticateFilter implements WebFilter {
         });
     }
 
-    @EnableConfigurationProperties
     @ConfigurationProperties(prefix = "blogic.jwt")
     @Getter
     @Setter

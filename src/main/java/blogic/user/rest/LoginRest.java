@@ -6,7 +6,9 @@ import blogic.core.security.*;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserService;
 import cn.hutool.crypto.digest.BCrypt;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -42,11 +44,12 @@ public class LoginRest {
         @NotBlank
         @Length(max = 20)
         private String password;
+        @NotNull
         private TerminalTypeEnum terminal;
     }
 
     @PostMapping("/login")
-    public Mono<ResVo<?>> login(@RequestBody LoginReq req, Locale locale) {
+    public Mono<ResVo<?>> login(@Valid @RequestBody LoginReq req, Locale locale) {
         return userRepository.findByPhone(req.getPhone()).flatMap(user -> {
             if(BCrypt.checkpw(req.getPassword(), user.getPassword())) {
                 Mono<ResVo<String>> createTokenMono = userService.createToken(user.getId(), req.getTerminal()).map(token -> ResVo.success(token));

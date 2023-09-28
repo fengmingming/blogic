@@ -1,8 +1,6 @@
 package blogic.core.security;
 
 import cn.hutool.cache.impl.TimedCache;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import java.util.concurrent.TimeUnit;
@@ -10,8 +8,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * 基于内存的上下文信息存储库
  * */
-@Component
-@ConditionalOnMissingBean
 public class InMemoryUserCurrentContextRepository implements UserCurrentContextRepository{
 
     private TimedCache<TokenInfo, UserCurrentContext> cache = new TimedCache<>(TimeUnit.MILLISECONDS.toMinutes(30));
@@ -24,12 +20,16 @@ public class InMemoryUserCurrentContextRepository implements UserCurrentContextR
 
     @Override
     public Mono<UserCurrentContext> find(TokenInfo tokenInfo) {
-        return Mono.just(cache.get(tokenInfo, false));
+        UserCurrentContext context = cache.get(tokenInfo, false);
+        if(context == null) return Mono.empty();
+        return Mono.just(context);
     }
 
     @Override
     public Mono<UserCurrentContext> findAndRefreshIdleTime(TokenInfo tokenInfo) {
-        return Mono.just(cache.get(tokenInfo, true));
+        UserCurrentContext context = cache.get(tokenInfo, true);
+        if(context == null) return Mono.empty();
+        return Mono.just(context);
     }
 
     @Override
