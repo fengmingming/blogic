@@ -6,6 +6,7 @@ import cn.hutool.jwt.JWTPayload;
 import cn.hutool.jwt.JWTUtil;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +28,7 @@ public class JwtTokenUtil {
         Map<String, Object> tokenInfo = new HashMap<>();
         tokenInfo.put(TokenInfo.USER_ID, userId);
         tokenInfo.put(TokenInfo.TERMINAL_TYPE, terminal);
+        tokenInfo.put(TokenInfo.CREATE_TIME, LocalDateTime.now());
         return JWTUtil.createToken(tokenInfo, key);
     }
 
@@ -34,18 +36,19 @@ public class JwtTokenUtil {
         return JWTUtil.verify(token, key);
     }
 
-    static String getTokenFromAuthorization(String authorization) {
+    public static String getTokenFromAuthorization(String authorization) {
         if(StrUtil.isNotBlank(authorization) && authorization.length() > 8 && authorization.startsWith("Bearer ")){
             return authorization.substring(7).trim();
         }
         throw new IllegalArgumentException("Authorization format is incorrect");
     }
 
-    static TokenInfo getTokenInfo(String token) {
+    public static TokenInfo getTokenInfo(String token) {
         JWT jwt = JWTUtil.parseToken(token);
         JWTPayload payload = jwt.getPayload();
         return TokenInfo.builder().userId(payload.getClaimsJson().getLong(TokenInfo.USER_ID))
                 .terminal(TerminalTypeEnum.valueOf(payload.getClaimsJson().getStr(TokenInfo.TERMINAL_TYPE)))
+                .createTime(payload.getClaimsJson().getLocalDateTime(TokenInfo.CREATE_TIME, null))
                 .build();
     }
 

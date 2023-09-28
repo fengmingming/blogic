@@ -8,7 +8,7 @@ import org.springframework.web.reactive.result.method.annotation.ArgumentResolve
 public class AuthenticateWebFluxConfigurer implements WebFluxConfigurer {
 
     public void configureArgumentResolvers(ArgumentResolverConfigurer configurer) {
-        configurer.addCustomResolver(new TokenInfoArgumentResolver());
+        configurer.addCustomResolver(new TokenInfoAndUserCurrentContextArgumentResolver());
     }
 
 }

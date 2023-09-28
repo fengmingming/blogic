@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -27,16 +28,18 @@ import java.util.Optional;
 public class AuthenticateFilter implements WebFilter {
 
     static final String TOKEN_INFO_ATTRIBUTE_KEY = AuthenticateFilter.class.getName() + ".TOKEN_INFO";
+    static final String USER_CURRENT_CONTEXT_ATTRIBUTE_KEY = AuthenticateFilter.class.getName() + ".USER_CURRENT_CONTEXT";
     private final RoleAndPermissionsRepository roleAndPermissionsRepository;
     private final PermitUrlRepository permitUrlRepository;
     private final JwtKeyProperties jwtKeyProperties;
+    private final UserCurrentContextRepository userCurrentContextRepository;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String funcUrl = buildFuncUrl(request.getMethod().name(), request.getPath().value(), request.getQueryParams());
         FuncTrees reqFT = FuncTrees.buildFuncTrees(Arrays.asList(funcUrl));
-        Mono<Void> authenticateMono = authenticate(exchange, reqFT).flatMap(it -> {
+        Mono<Void> authenticateMono = authenticate(exchange, reqFT).defaultIfEmpty(false).flatMap(it -> {
             if(it) {
                 return chain.filter(exchange);
             }else {
@@ -73,10 +76,14 @@ public class AuthenticateFilter implements WebFilter {
         }
         TokenInfo tokenInfo = JwtTokenUtil.getTokenInfo(token);
         exchange.getAttributes().putIfAbsent(TOKEN_INFO_ATTRIBUTE_KEY, tokenInfo);
-        return roleAndPermissionsRepository.findFuncTrees(tokenInfo.getUserId()).map(fts -> {
-            Optional<FuncTree.Authorities> authoritiesOpt = FuncTrees.match(fts, reqFT.firstFuncTree().get());
-            if(!authoritiesOpt.isPresent()) return true;
-            return CollectionUtil.intersection(authoritiesOpt.get().getAuthorities(), tokenInfo.getAuthorities()).size() > 0;
+        return userCurrentContextRepository.findAndRefreshIdleTime(tokenInfo).flatMap(current -> {
+            exchange.getAttributes().putIfAbsent(USER_CURRENT_CONTEXT_ATTRIBUTE_KEY, current);
+            return roleAndPermissionsRepository.findFuncTrees(tokenInfo.getUserId()).map(fts -> {
+                Optional<FuncTree.Authorities> authoritiesOpt = FuncTrees.match(fts, reqFT.firstFuncTree().get());
+                if(!authoritiesOpt.isPresent()) return true;
+                return CollectionUtil.intersection(authoritiesOpt.get().getAuthorities(),
+                        current.getAuthorities().stream().map(it -> it.name()).collect(Collectors.toSet())).size() > 0;
+            });
         });
     }
 

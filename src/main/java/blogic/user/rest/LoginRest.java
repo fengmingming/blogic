@@ -1,10 +1,8 @@
 package blogic.user.rest;
 
+import blogic.core.rest.DefaultCodedException;
 import blogic.core.rest.ResVo;
-import blogic.core.security.AuthenticateFilter;
-import blogic.core.security.JwtTokenUtil;
-import blogic.core.security.TerminalTypeEnum;
-import blogic.core.security.TokenInfo;
+import blogic.core.security.*;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserService;
 import cn.hutool.crypto.digest.BCrypt;
@@ -19,8 +17,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 public class LoginRest {
@@ -31,6 +30,8 @@ public class LoginRest {
     private MessageSource messageSource;
     @Autowired
     private UserService userService;
+    @Autowired
+    private UserCurrentContextRepository userCurrentContextRepository;
 
     @Setter
     @Getter
@@ -48,11 +49,19 @@ public class LoginRest {
     public Mono<ResVo<?>> login(@RequestBody LoginReq req, Locale locale) {
         return userRepository.findByPhone(req.getPhone()).flatMap(user -> {
             if(BCrypt.checkpw(req.getPassword(), user.getPassword())) {
-                return userService.createToken(user.getId(), req.getTerminal()).map(token -> ResVo.success(token));
+                Mono<ResVo<String>> createTokenMono = userService.createToken(user.getId(), req.getTerminal()).map(token -> ResVo.success(token));
+                TokenInfo tokenInfo = TokenInfo.builder().userId(user.getId()).terminal(req.getTerminal()).build();
+                return userCurrentContextRepository.findAndRefreshIdleTime(tokenInfo)
+                        .flatMap(context -> userCurrentContextRepository.delete(tokenInfo))
+                        .then(createTokenMono).flatMap(resVo -> {
+                            UserCurrentContext context = UserCurrentContext.builder().build();
+                            return userCurrentContextRepository.save(tokenInfo, context, 30, TimeUnit.MINUTES)
+                                    .then(Mono.just(resVo));
+                        });
             }else {
-                return Mono.just(ResVo.error(messageSource.getMessage("1001", null, locale)));
+                return Mono.just(ResVo.error(1001, locale));
             }
-        }).defaultIfEmpty(ResVo.error(messageSource.getMessage("1002", null, locale)));
+        }).switchIfEmpty(Mono.just(ResVo.error(1002, locale)));
     }
 
 }

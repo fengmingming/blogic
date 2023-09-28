@@ -22,4 +22,19 @@ public class TestReactive {
         System.out.println(ft.toString());
     }
 
+    @Test
+    public void testDefaultIfEmpty() {
+        Flux.empty().doOnNext(it -> System.out.println(it)).thenMany(Flux.just(1))
+                .map(it -> it).collectList().doOnNext(it -> System.out.println(it)).subscribe();
+    }
+
+    @Test
+    public void testThen() {
+        Flux.empty().thenMany(Flux.just(1)).doOnNext(it -> System.out.println(it)).subscribe();
+    }
+
+    @Test
+    public void testNull() {
+    }
+
 }

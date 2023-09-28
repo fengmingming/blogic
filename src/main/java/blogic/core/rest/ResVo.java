@@ -1,7 +1,10 @@
 package blogic.core.rest;
 
+import blogic.core.context.SpringContext;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.Locale;
 
 @Setter
 @Getter
@@ -22,17 +25,24 @@ public class ResVo<T> {
         return resVo;
     }
 
-    public static ResVo<?> error(int code, String codeDesc) {
-        ResVo<?> resVo = new ResVo<>();
+    public static <T> ResVo<T> error(int code, String codeDesc) {
+        ResVo<T> resVo = new ResVo<>();
         resVo.setCode(code);
         resVo.setCodeDesc(codeDesc);
         return resVo;
     }
 
-    public static ResVo<?> error(String codeDesc) {
-        ResVo<?> resVo = new ResVo<>();
+    public static <T> ResVo<T> error(String codeDesc) {
+        ResVo<T> resVo = new ResVo<>();
         resVo.setCode(500);
         resVo.setCodeDesc(codeDesc);
+        return resVo;
+    }
+
+    public static <T> ResVo<T> error(int code, Locale locale, Object ... args) {
+        ResVo<T> resVo = new ResVo<>();
+        resVo.setCode(code);
+        resVo.setCodeDesc(SpringContext.INSTANCE().getMessage(String.valueOf(code), args, locale));
         return resVo;
     }
 
