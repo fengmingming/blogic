@@ -1,23 +1,26 @@
 package blogic.user.rest;
 
+import blogic.core.exception.UnauthorizedAccessException;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
+import blogic.core.security.UserCurrentContext;
+import blogic.user.domain.RoleEnum;
 import blogic.user.domain.User;
 import blogic.user.domain.repository.UserRepository;
+import blogic.user.service.UserCompanyDto;
 import blogic.user.service.UserService;
+import cn.hutool.core.map.MapUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 public class UserRest {
@@ -53,12 +56,39 @@ public class UserRest {
         private String name;
     }
 
-    @PutMapping("/Users")
-    public Mono<ResVo> updateUser(TokenInfo tokenInfo, @RequestBody @Valid UpdateUserReq req) {
+    @PutMapping("/Users/{userId}")
+    public Mono<ResVo> updateUser(@PathVariable("userId")Long userId, TokenInfo tokenInfo, @RequestBody @Valid UpdateUserReq req) {
+        if(!tokenInfo.getUserId().equals(userId)) Mono.error(new UnauthorizedAccessException());
         UserService.UpdateUserCommand command = new UserService.UpdateUserCommand();
         command.setUserId(tokenInfo.getUserId());
         command.setName(req.getName());
         return userService.updateUser(command).map(it -> ResVo.success());
+    }
+
+    @GetMapping("/Users/{userId}")
+    public Mono<ResVo<?>> getUserInfo(@PathVariable("userId")Long userId, TokenInfo tokenInfo) {
+        if(!tokenInfo.getUserId().equals(userId)) Mono.error(new UnauthorizedAccessException());
+        return Mono.zip(userRepository.findById(tokenInfo.getUserId()), userService.findUserCompaniesByUserId(tokenInfo.getUserId()).collectList())
+            .map(tuple -> {
+                User user = tuple.getT1();
+                List<UserCompanyDto> companies = tuple.getT2();
+                return ResVo.success(MapUtil.builder()
+                    .put("userId", user.getId())
+                    .put("userName", user.getName())
+                    .put("phone", user.getPhone())
+                    .put("companies", companies)
+                    .build());
+            });
+    }
+
+    /**
+     * 给用户分配角色
+     * 管理员角色分配
+     * */
+    @PutMapping("/Users/{userId}/Roles")
+    public Mono<ResVo<?>> assignRoles(@PathVariable("userId")Long userId, UserCurrentContext context, @RequestBody List<RoleEnum> roles) {
+        Long companyId = context.getCompanyId();
+        return userService.assignRoles(userId, companyId, roles).then(Mono.just(ResVo.success()));
     }
 
 }

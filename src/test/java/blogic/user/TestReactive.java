@@ -37,4 +37,9 @@ public class TestReactive {
     public void testNull() {
     }
 
+    @Test
+    public void testZip() {
+        Mono.zip(Mono.empty(), Mono.just(1)).doOnNext(tuple -> System.out.println(tuple)).subscribe();
+    }
+
 }

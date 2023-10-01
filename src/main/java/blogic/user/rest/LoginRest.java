@@ -51,7 +51,7 @@ public class LoginRest {
 
     @PostMapping("/login")
     public Mono<ResVo<?>> login(@Valid @RequestBody LoginReq req, Locale locale) {
-        return userRepository.findByPhone(req.getPhone()).flatMap(user -> {
+        return userRepository.findByPhone(req.getPhone()).filter(it -> !it.getDeleted()).flatMap(user -> {
             if(BCrypt.checkpw(req.getPassword(), user.getPassword())) {
                 Mono<ResVo<String>> createTokenMono = userService.createToken(user.getId(), req.getTerminal()).map(token -> ResVo.success(token));
                 TokenInfo tokenInfo = TokenInfo.builder().userId(user.getId()).terminal(req.getTerminal()).build();

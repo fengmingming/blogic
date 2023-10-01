@@ -1,6 +1,6 @@
 package blogic.core.rest;
 
-import blogic.core.CodedException;
+import blogic.core.exception.CodedException;
 import jakarta.validation.ValidationException;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

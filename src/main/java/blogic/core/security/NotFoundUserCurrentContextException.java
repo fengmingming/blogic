@@ -1,6 +1,6 @@
 package blogic.core.security;
 
-import blogic.core.CodedException;
+import blogic.core.exception.CodedException;
 
 public class NotFoundUserCurrentContextException extends RuntimeException implements CodedException {
 
