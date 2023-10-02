@@ -21,6 +21,7 @@ logging:
   level:
     root: info
     blogic: debug
+    org.springframework.r2dbc: debug
 
 blogic:
   jwt:

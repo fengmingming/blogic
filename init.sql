@@ -28,4 +28,41 @@ create table blogic.user_company_role (
     admin tinyint not null default 0 comment '0否 1是 是否是公司管理者',
     primary key (id),
     key user_company (user_id,company_id)
-)engine=INNODB default charset=utf8mb4 comment '用户在公司中的角色';
+)engine=INNODB default charset=utf8mb4 comment='用户在公司中的角色';
+
+create table blogic.im_message (
+	id bigint not null auto_increment comment '',
+    from_user_id bigint not null comment '发送消息人',
+    to_user_id bigint null comment '接受消息人',
+    group_id bigint null comment '组id',
+    msg_type varchar(10) not null comment '消息类型',
+    content text not null comment '消息内容',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '1删除 0 未删除',
+    primary key (id),
+    key from_user_id (from_user_id),
+    key to_user_id (to_user_id),
+    key group_id (group_id)
+)engine=INNODB default charset=utf8mb4 comment='消息';
+
+create table blogic.im_group (
+	id bigint not null auto_increment comment '组id',
+    groupName varchar(100) not null comment '组名称',
+    createTime datetime not null comment '创建时间',
+    updateTime datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0未删除 1删除',
+    primary key (id)
+)engine=INNODB default charset=utf8mb4 comment='组信息';
+
+create table blogic.im_group_member (
+	id bigint not null auto_increment comment '主键',
+    group_id bigint not null comment '组id',
+    user_id bigint not null comment '组成员',
+    admin tinyint not null default 0 comment '管理员',
+    createTime datetime not null comment '创建时间',
+    updateTime datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0未删除 1删除',
+    primary key (id),
+    key group_id (group_id)
+)engine=INNODB default charset=utf8mb4 comment='组成员';
