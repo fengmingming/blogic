@@ -2,6 +2,7 @@ package blogic.user.rest;
 
 import blogic.core.exception.UnauthorizedAccessException;
 import blogic.core.rest.ResVo;
+import blogic.core.security.JwtTokenUtil;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
 import blogic.user.domain.RoleEnum;
@@ -12,6 +13,7 @@ import blogic.user.service.UserService;
 import cn.hutool.core.map.MapUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -21,6 +23,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 @RestController
 public class UserRest {
@@ -58,7 +61,7 @@ public class UserRest {
 
     @PutMapping("/Users/{userId}")
     public Mono<ResVo> updateUser(@PathVariable("userId")Long userId, TokenInfo tokenInfo, @RequestBody @Valid UpdateUserReq req) {
-        if(!tokenInfo.getUserId().equals(userId)) Mono.error(new UnauthorizedAccessException());
+        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new UnauthorizedAccessException());
         UserService.UpdateUserCommand command = new UserService.UpdateUserCommand();
         command.setUserId(tokenInfo.getUserId());
         command.setName(req.getName());
@@ -67,7 +70,7 @@ public class UserRest {
 
     @GetMapping("/Users/{userId}")
     public Mono<ResVo<?>> getUserInfo(@PathVariable("userId")Long userId, TokenInfo tokenInfo) {
-        if(!tokenInfo.getUserId().equals(userId)) Mono.error(new UnauthorizedAccessException());
+        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new UnauthorizedAccessException());
         return Mono.zip(userRepository.findById(tokenInfo.getUserId()), userService.findUserCompaniesByUserId(tokenInfo.getUserId()).collectList())
             .map(tuple -> {
                 User user = tuple.getT1();
@@ -89,6 +92,29 @@ public class UserRest {
     public Mono<ResVo<?>> assignRoles(@PathVariable("userId")Long userId, UserCurrentContext context, @RequestBody List<RoleEnum> roles) {
         Long companyId = context.getCompanyId();
         return userService.assignRoles(userId, companyId, roles).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class SwitchContextReq {
+        @NotNull
+        private Long companyId;
+    }
+
+    /**
+     * 转换用户上下文
+     * */
+    @PutMapping("/Users/{userId}/switchContext")
+    public Mono<ResVo<?>> switchContext(@PathVariable("userId")Long userId, TokenInfo tokenInfo, Locale locale,
+                                        @RequestHeader("Authorization") String authorization, @RequestBody @Valid SwitchContextReq req) {
+        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new UnauthorizedAccessException());//自己只能切换自己上下文
+        return userService.validUserIdAndCompanyId(userId, req.getCompanyId()).flatMap(it -> {
+            if(it) {
+                return userService.switchUserCurrentContext(tokenInfo, req.getCompanyId(),
+                        JwtTokenUtil.getTokenFromAuthorization(authorization)).then(Mono.just(ResVo.success()));
+            }
+            return Mono.just(ResVo.error(403, locale));
+        });
     }
 
 }

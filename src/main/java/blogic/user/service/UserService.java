@@ -1,9 +1,7 @@
 package blogic.user.service;
 
 import blogic.company.domain.Company;
-import blogic.core.security.AuthenticateFilter;
-import blogic.core.security.JwtTokenUtil;
-import blogic.core.security.TerminalTypeEnum;
+import blogic.core.security.*;
 import blogic.user.domain.RoleEnum;
 import blogic.user.domain.User;
 import blogic.user.domain.UserCompanyRole;
@@ -30,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component
@@ -44,6 +43,8 @@ public class UserService {
     private CompanyRepository companyRepository;
     @Autowired
     private AuthenticateFilter.JwtKeyProperties jwtKeyProperties;
+    @Autowired
+    private UserCurrentContextRepository userCurrentContextRepository;
 
     @Transactional
     public Mono<User> createUser(@Valid User user) {
@@ -127,6 +128,28 @@ public class UserService {
                         return ucr;
                     }))).collectList()).then();
             });
+    }
+
+    /**
+     * 验证公司id是否属于用户id
+     * @param userId
+     * @param companyId
+     * @return boolean true
+     */
+    public Mono<Boolean> validUserIdAndCompanyId(Long userId, Long companyId) {
+        return userCompanyRoleRepository.findByUserId(userId).map(it -> it.getCompanyId()).filter(it -> it.equals(companyId)).count().map(it -> it > 0).defaultIfEmpty(false);
+    }
+
+    public Mono<Void> switchUserCurrentContext(TokenInfo tokenInfo, Long companyId, String token) {
+        return Mono.zip(companyRepository.findById(companyId), userCompanyRoleRepository.findByUserId(tokenInfo.getUserId())
+            .filter(it -> it.getCompanyId().equals(companyId)).map(it -> it.getRole()).collectList())
+                .flatMap(tuple -> {
+                    Company company = tuple.getT1();
+                    List<RoleEnum> roles = tuple.getT2();
+                    UserCurrentContext context = UserCurrentContext.builder().token(token).companyId(company.getId())
+                            .companyName(company.getCompanyName()).authorities(roles).build();
+                    return userCurrentContextRepository.save(tokenInfo, context, jwtKeyProperties.getTimeout(), TimeUnit.MINUTES);
+                });
     }
 
 }

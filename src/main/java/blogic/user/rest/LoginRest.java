@@ -1,10 +1,7 @@
 package blogic.user.rest;
 
 import blogic.core.rest.ResVo;
-import blogic.core.security.TerminalTypeEnum;
-import blogic.core.security.TokenInfo;
-import blogic.core.security.UserCurrentContext;
-import blogic.core.security.UserCurrentContextRepository;
+import blogic.core.security.*;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserService;
 import cn.hutool.crypto.digest.BCrypt;
@@ -35,6 +32,8 @@ public class LoginRest {
     private UserService userService;
     @Autowired
     private UserCurrentContextRepository userCurrentContextRepository;
+    @Autowired
+    private AuthenticateFilter.JwtKeyProperties jwtKeyProperties;
 
     @Setter
     @Getter
@@ -59,7 +58,7 @@ public class LoginRest {
                         .flatMap(context -> userCurrentContextRepository.delete(tokenInfo))
                         .then(createTokenMono).flatMap(resVo -> {
                             UserCurrentContext context = UserCurrentContext.builder().build();
-                            return userCurrentContextRepository.save(tokenInfo, context, 30, TimeUnit.MINUTES)
+                            return userCurrentContextRepository.save(tokenInfo, context, jwtKeyProperties.getTimeout(), TimeUnit.MINUTES)
                                     .then(Mono.just(resVo));
                         });
             }else {

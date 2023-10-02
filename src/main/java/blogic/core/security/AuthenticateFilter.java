@@ -89,6 +89,7 @@ public class AuthenticateFilter implements WebFilter {
     @Setter
     public static class JwtKeyProperties {
         private String key;
+        private Integer timeout = 30;
     }
 
 }
