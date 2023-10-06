@@ -11,7 +11,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = BLogicBootstrap.class)
@@ -25,6 +24,7 @@ public class TestIM {
     public void testIM() {
         TextContent content = new TextContent();
         content.setContent("xxxxxx");
+        content.setMsgType(MsgType.TEXT);
         IMMessage message = new IMMessage();
         message.setFromUserId(1L);
         message.setToUserId(1L);
@@ -32,8 +32,13 @@ public class TestIM {
         message.setCreateTime(LocalDateTime.now());
         message.setContent(content);
         imMessageRepository.save(message).block();
-        List<IMMessage> msgs = imMessageRepository.findByFromUserIdAndDeleted(1L, false).collectList().block();
-        System.out.println(msgs.size());
+    }
+
+    @Test
+    public void testIMQuery() {
+        System.out.println(imMessageRepository.findMessagesByFromUserId(1L, 4)
+                .doOnNext(it -> it.getContent())
+                .collectList().block().size());
     }
 
 }

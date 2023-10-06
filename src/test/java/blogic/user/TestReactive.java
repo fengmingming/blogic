@@ -42,4 +42,9 @@ public class TestReactive {
         Mono.zip(Mono.empty(), Mono.just(1)).doOnNext(tuple -> System.out.println(tuple)).subscribe();
     }
 
+    @Test
+    public void testConcatMap() {
+        System.out.println(Flux.empty().concatWith(Flux.just(1)).collectList().block());
+    }
+
 }
