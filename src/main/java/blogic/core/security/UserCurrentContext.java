@@ -1,5 +1,6 @@
 package blogic.core.security;
 
+import blogic.core.exception.ForbiddenAccessException;
 import blogic.user.domain.RoleEnum;
 import lombok.*;
 
@@ -18,5 +19,13 @@ public class UserCurrentContext implements Serializable {
     private Long companyId;
     private String companyName;
     private List<RoleEnum> authorities = new ArrayList<>();
+
+    public boolean equalCompanyId(long companyId) {
+        return this.equals(companyId);
+    }
+
+    public void equalCompanyIdAndThrowException(long companyId) {
+        if(!equalCompanyId(companyId)) throw new ForbiddenAccessException();
+    }
 
 }

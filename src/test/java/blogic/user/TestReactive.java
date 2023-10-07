@@ -47,4 +47,9 @@ public class TestReactive {
         System.out.println(Flux.empty().concatWith(Flux.just(1)).collectList().block());
     }
 
+    @Test
+    public void testError() {
+        System.out.println(Mono.error(new RuntimeException()).then(Mono.just(1)).block());
+    }
+
 }

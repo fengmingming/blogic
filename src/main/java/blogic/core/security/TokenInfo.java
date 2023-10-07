@@ -1,5 +1,6 @@
 package blogic.core.security;
 
+import blogic.core.exception.ForbiddenAccessException;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -18,5 +19,13 @@ public class TokenInfo {
     private Long userId;
     private TerminalTypeEnum terminal;
     private LocalDateTime createTime;
+
+    public boolean equalUserId(long userId) {
+        return this.userId.equals(userId);
+    }
+
+    public void equalUserIdAndThrowException(long userId) {
+        if(!equalUserId(userId)) throw new ForbiddenAccessException();
+    }
 
 }
