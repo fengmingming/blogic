@@ -135,11 +135,11 @@ public class FuncTree {
                 if(log.isDebugEnabled()) {
                     log.debug("build query kvArray {}", Stream.of(kvArray).collect(Collectors.joining(",")));
                 }
-                Stream<String> stream = Stream.of(kvArray).filter(it -> StrUtil.isNotBlank(it)).map(it -> it.trim());
-                q.getAuthorities().getAuthorities().addAll(stream.filter(it -> it.startsWith("authorities"))
+                List<String> kvList = Stream.of(kvArray).filter(it -> StrUtil.isNotBlank(it)).map(it -> it.trim()).collect(Collectors.toList());
+                q.getAuthorities().getAuthorities().addAll(kvList.stream().filter(it -> it.startsWith("authorities"))
                         .flatMap(it -> Stream.of(it.split(","))).filter(it -> StrUtil.isNotBlank(it))
                         .map(it -> it.trim()).collect(Collectors.toSet()));
-                q.getParams().addAll(stream.filter(it -> !it.startsWith("authorities")).map(it -> {
+                q.getParams().addAll(kvList.stream().filter(it -> !it.startsWith("authorities")).map(it -> {
                     int notIndex = it.indexOf(Param.NOT);
                     int eqIndex = it.indexOf(Param.EQ);
                     Param p = new Param();

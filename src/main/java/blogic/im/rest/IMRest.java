@@ -1,5 +1,8 @@
 package blogic.im.rest;
 
+import blogic.core.exception.DefaultCodedException;
+import blogic.core.exception.ForbiddenAccessException;
+import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.im.Message;
 import blogic.im.service.IMService;
@@ -25,8 +28,14 @@ public class IMRest {
     private IMService imService;
 
     @PostMapping("/im/{userId}/send")
-    public Mono<Long> sendMsg(@PathVariable("userId")Long userId, @RequestBody Message message) {
-        return imService.sendMsg(message);
+    public Mono<ResVo<Long>> sendMsg(@PathVariable("userId")Long userId, TokenInfo tokenInfo, @Valid @RequestBody Message message) {
+        if(!tokenInfo.getUserId().equals(userId) || !message.getContent().getFromUserId().equals(userId)) {
+            return Mono.error(new ForbiddenAccessException());
+        }
+        if(message.getContent().getToUserId() == null && message.getContent().getGroupId() == null) {
+            return Mono.error(DefaultCodedException.build(2001));
+        }
+        return imService.sendMsg(message).map(it -> ResVo.success(it));
     }
 
     @Data
@@ -42,7 +51,7 @@ public class IMRest {
     }
 
     @GetMapping("/im/{userId}/receive")
-    public Flux<MessageDto> receiveMsg(@PathVariable("userId") Long userId, @RequestParam(value = "lastMsgId", required = false) Long lastMsgId) {
+    public Mono<ResVo<List<MessageDto>>> receiveMsg(@PathVariable("userId") Long userId, @RequestParam("lastMsgId") Long lastMsgId) {
         return imService.receiveMsg(userId, lastMsgId).collectMultimap(it -> {
             MessageGroup group = new MessageGroup();
             if(it.getContent().getGroupId() != null) {
@@ -61,7 +70,7 @@ public class IMRest {
             dto.setId(it.getKey().getId());
             dto.setMessages(it.getValue());
             return dto;
-        }));
+        })).collectList().map(it -> ResVo.success(it));
     }
 
     @Setter
@@ -74,13 +83,14 @@ public class IMRest {
     }
 
     @PostMapping("/im/ImGroups")
-    public Mono<Long> createImGroup(TokenInfo tokenInfo, @RequestBody @Valid CreateImGroup group) {
-        return imService.createGroup(group.getGroupName(), tokenInfo.getUserId(), group.getMembers());
+    public Mono<ResVo<Long>> createImGroup(TokenInfo tokenInfo, @RequestBody @Valid CreateImGroup group) {
+        return imService.createGroup(group.getGroupName(), tokenInfo.getUserId(), group.getMembers())
+                .map(it -> ResVo.success(it));
     }
 
     @PutMapping("/im/ImGroups/{groupId}/Members")
-    public Mono<Void> addMember(@PathVariable("groupId")Long groupId, @RequestBody Collection<Long> members) {
-        return imService.addGroupMember(groupId, members);
+    public Mono<ResVo<?>> addMember(@PathVariable("groupId")Long groupId, @RequestBody Collection<Long> members) {
+        return imService.addGroupMember(groupId, members).then(Mono.just(ResVo.success()));
     }
 
 }

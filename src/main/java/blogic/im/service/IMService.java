@@ -44,7 +44,13 @@ public class IMService {
         return messageRepository.findMessagesByFromUserId(userId, lastMsgId)
             .concatWith(messageRepository.findMessagesByToUserId(userId, lastMsgId))
             .concatWith(groupMemberRepository.findByUserIdAndDeleted(userId, false)
-                .map(it -> it.getGroupId()).collectList().flatMapMany(its -> messageRepository.findMessagesByGroupId(its, lastMsgId)))
+                .map(it -> it.getGroupId()).collectList().flatMapMany(its -> {
+                        if(its.size() > 0) {
+                            return messageRepository.findMessagesByGroupId(its, lastMsgId);
+                        }else {
+                            return Flux.empty();
+                        }
+                    }))
             .map(it -> {
                 Message message = new Message();
                 message.setMsgId(it.getId());

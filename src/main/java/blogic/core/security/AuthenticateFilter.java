@@ -1,5 +1,6 @@
 package blogic.core.security;
 
+import blogic.core.exception.ForbiddenAccessException;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import lombok.Getter;
@@ -40,7 +41,7 @@ public class AuthenticateFilter implements WebFilter {
             if(it) {
                 return chain.filter(exchange);
             }else {
-                return Mono.error(new UnauthorizedException());
+                return Mono.error(new ForbiddenAccessException());
             }
         });
         return permitUrlRepository.findFuncTrees().flatMap(fts -> {
@@ -66,10 +67,10 @@ public class AuthenticateFilter implements WebFilter {
 
     protected Mono<Boolean> authenticate(ServerWebExchange exchange, FuncTrees reqFT) {
         String authorization = exchange.getRequest().getHeaders().getFirst("Authorization");
-        if(StrUtil.isBlank(authorization)) return Mono.just(Boolean.FALSE);
+        if(StrUtil.isBlank(authorization)) return Mono.error(new UnauthorizedException());
         String token = JwtTokenUtil.getTokenFromAuthorization(authorization);
         if(!JwtTokenUtil.validToken(token, jwtKeyProperties.getKey().getBytes(StandardCharsets.UTF_8))) {
-            return Mono.just(Boolean.FALSE);
+            return Mono.error(new UnauthorizedException());
         }
         TokenInfo tokenInfo = JwtTokenUtil.getTokenInfo(token);
         exchange.getAttributes().putIfAbsent(TOKEN_INFO_ATTRIBUTE_KEY, tokenInfo);

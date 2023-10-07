@@ -1,6 +1,6 @@
 package blogic.user.rest;
 
-import blogic.core.exception.UnauthorizedAccessException;
+import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.ResVo;
 import blogic.core.security.JwtTokenUtil;
 import blogic.core.security.TokenInfo;
@@ -61,7 +61,7 @@ public class UserRest {
 
     @PutMapping("/Users/{userId}")
     public Mono<ResVo> updateUser(@PathVariable("userId")Long userId, TokenInfo tokenInfo, @RequestBody @Valid UpdateUserReq req) {
-        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new UnauthorizedAccessException());
+        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new ForbiddenAccessException());
         UserService.UpdateUserCommand command = new UserService.UpdateUserCommand();
         command.setUserId(tokenInfo.getUserId());
         command.setName(req.getName());
@@ -70,7 +70,7 @@ public class UserRest {
 
     @GetMapping("/Users/{userId}")
     public Mono<ResVo<?>> getUserInfo(@PathVariable("userId")Long userId, TokenInfo tokenInfo) {
-        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new UnauthorizedAccessException());
+        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new ForbiddenAccessException());
         return Mono.zip(userRepository.findById(tokenInfo.getUserId()), userService.findUserCompaniesByUserId(tokenInfo.getUserId()).collectList())
             .map(tuple -> {
                 User user = tuple.getT1();
@@ -107,7 +107,7 @@ public class UserRest {
     @PutMapping("/Users/{userId}/switchContext")
     public Mono<ResVo<?>> switchContext(@PathVariable("userId")Long userId, TokenInfo tokenInfo, Locale locale,
                                         @RequestHeader("Authorization") String authorization, @RequestBody @Valid SwitchContextReq req) {
-        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new UnauthorizedAccessException());//自己只能切换自己上下文
+        if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new ForbiddenAccessException());//自己只能切换自己上下文
         return userService.validUserIdAndCompanyId(userId, req.getCompanyId()).flatMap(it -> {
             if(it) {
                 return userService.switchUserCurrentContext(tokenInfo, req.getCompanyId(),

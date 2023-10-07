@@ -9,11 +9,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.context.MessageSource;
+import org.springframework.core.NestedRuntimeException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.server.ServerWebInputException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -52,10 +54,7 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
             return codedExceptionMessageSource.getMessage(String.valueOf(ce.getCode()),
                     ce.getTemplateArgs(), String.format("service exception [%d]", ce.getCode()), locale);
         }
-        if(!errorHandleProperties.isErrorMessageHandle()) return e.getMessage();
-        if(e instanceof DataAccessException dae) {
-            return "execute sql exception";
-        }else if(e instanceof BindingResult br) {
+        if(e instanceof BindingResult br) {
             return br.getAllErrors().stream().map(it -> {
                 if(it instanceof FieldError fe) {
                     return String.format("%s %s", fe.getField(), fe.getDefaultMessage());
@@ -63,6 +62,10 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
                     return String.format("%s %s", it.getObjectName(), it.getDefaultMessage());
                 }
             }).collect(Collectors.joining(";"));
+        }
+        if(!errorHandleProperties.isErrorMessageHandle()) return e.getMessage();
+        if(e instanceof DataAccessException dae) {
+            return "execute sql exception";
         }else if(e instanceof ValidationException ve) {
             return "internal parameter exception";
         }

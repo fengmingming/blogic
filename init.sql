@@ -49,8 +49,8 @@ create table blogic.im_message (
 create table blogic.im_group (
 	id bigint not null auto_increment comment '组id',
     groupName varchar(100) not null comment '组名称',
-    createTime datetime not null comment '创建时间',
-    updateTime datetime null comment '修改时间',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
     deleted tinyint not null default 0 comment '0未删除 1删除',
     primary key (id)
 )engine=INNODB default charset=utf8mb4 comment='组信息';
@@ -60,8 +60,8 @@ create table blogic.im_group_member (
     group_id bigint not null comment '组id',
     user_id bigint not null comment '组成员',
     admin tinyint not null default 0 comment '管理员',
-    createTime datetime not null comment '创建时间',
-    updateTime datetime null comment '修改时间',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
     deleted tinyint not null default 0 comment '0未删除 1删除',
     primary key (id),
     key group_id (group_id)
