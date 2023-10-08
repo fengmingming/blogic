@@ -86,3 +86,41 @@ create table blogic.user_department (
     primary key (id),
     key user_id (user_id)
 )engine=INNODB default charset=utf8mb4 comment='用户部门关系表';
+
+
+create table blogic.product (
+    id bigint not null auto_increment comment '产品id',
+    company_id bigint not null comment '公司id',
+    product_name varchar(254) not null comment '产品名称',
+    product_desc text null comment '产品描述',
+    create_user_id bigint not null comment '创建用户id',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0否 1已删除',
+    primary key (id),
+    key company_id (company_id)
+)engine=INNODB default charset=utf8mb4 comment='产品表';
+
+create table blogic.product_member (
+	id bigint not null auto_increment comment '',
+    product_id bigint not null comment '产品id',
+    user_id bigint not null comment '用户id',
+    primary key (id),
+    unique key product_user (product_id, user_id)
+)engine=INNODB default charset=utf8mb4 comment='产品成员表';
+
+create table blogic.product_requirment(
+    id bigint not null auto_increment comment '需求id',
+    product_id bigint not null comment '产品id',
+    requirment_name varchar(254) not null comment '需求名称',
+    requirment_sources varchar(254) null comment '需求来源',
+    requirment_desc text null comment '需求描述',
+    external_url varchar(2048) null comment '外部链接',
+    create_user_id bigint not null comment '创建用户id',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0否 1已删除',
+    primary key (id),
+    key product_id (product_id)
+)engine=INNODB default charset=utf8mb4 comment='需求表';
+
