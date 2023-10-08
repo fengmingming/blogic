@@ -20,12 +20,12 @@ public class TokenInfo {
     private TerminalTypeEnum terminal;
     private LocalDateTime createTime;
 
-    public boolean equalUserId(long userId) {
+    public boolean equalsUserId(long userId) {
         return this.userId.equals(userId);
     }
 
-    public void equalUserIdAndThrowException(long userId) {
-        if(!equalUserId(userId)) throw new ForbiddenAccessException();
+    public void equalsUserIdOrThrowException(long userId) {
+        if(!equalsUserId(userId)) throw new ForbiddenAccessException();
     }
 
 }

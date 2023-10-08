@@ -17,6 +17,11 @@ public class TestReactive {
     }
 
     @Test
+    public void testEmpty2() {
+        System.out.println(Flux.empty().count().doOnNext(System.out::println).block());
+    }
+
+    @Test
     public void testFuncTree() {
         FuncTrees ft = FuncTrees.buildFuncTrees(Arrays.asList("POST:/blogic/login"));
         System.out.println(ft.toString());

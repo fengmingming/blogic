@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Setter
@@ -20,12 +21,39 @@ public class UserCurrentContext implements Serializable {
     private String companyName;
     private List<RoleEnum> authorities = new ArrayList<>();
 
-    public boolean equalCompanyId(long companyId) {
+    public boolean equalsCompanyId(long companyId) {
         return this.equals(companyId);
     }
 
-    public void equalCompanyIdAndThrowException(long companyId) {
-        if(!equalCompanyId(companyId)) throw new ForbiddenAccessException();
+    public void equalsCompanyIdOrThrowException(long companyId) {
+        if(!equalsCompanyId(companyId)) throw new ForbiddenAccessException();
+    }
+
+    public boolean authenticate(RoleEnum role) {
+        return authenticate(true, role);
+    }
+
+    public void authenticateOrThrowException(RoleEnum role) {
+        authenticateOrThrowException(true, role);
+    }
+
+    public boolean authenticate(boolean and, RoleEnum ... roles) {
+        if(and) {
+            return this.authorities.containsAll(Arrays.asList(roles));
+        }else {
+            for(RoleEnum role : roles) {
+                if(this.authorities.contains(role)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public void authenticateOrThrowException(boolean and, RoleEnum ... roles) {
+        if(!authenticate(and, roles)) {
+            throw new ForbiddenAccessException();
+        }
     }
 
 }

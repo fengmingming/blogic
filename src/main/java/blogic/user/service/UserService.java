@@ -5,7 +5,7 @@ import blogic.core.security.*;
 import blogic.user.domain.RoleEnum;
 import blogic.user.domain.User;
 import blogic.user.domain.UserCompanyRole;
-import blogic.user.domain.repository.CompanyRepository;
+import blogic.company.domain.repository.CompanyRepository;
 import blogic.user.domain.repository.UserCompanyRoleRepository;
 import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.collection.CollectionUtil;
@@ -17,7 +17,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -137,7 +136,8 @@ public class UserService {
      * @return boolean true
      */
     public Mono<Boolean> validUserIdAndCompanyId(Long userId, Long companyId) {
-        return userCompanyRoleRepository.findByUserId(userId).map(it -> it.getCompanyId()).filter(it -> it.equals(companyId)).count().map(it -> it > 0).defaultIfEmpty(false);
+        return userCompanyRoleRepository.findByUserId(userId).map(it -> it.getCompanyId())
+                .filter(it -> it.equals(companyId)).count().map(it -> it > 0).defaultIfEmpty(false);
     }
 
     public Mono<Void> switchUserCurrentContext(TokenInfo tokenInfo, Long companyId, String token) {
