@@ -1,10 +1,10 @@
 package blogic.im.domain.repository;
 
 import blogic.im.domain.IMGroup;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import com.infobip.spring.data.r2dbc.QuerydslR2dbcRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface IMGroupRepository extends R2dbcRepository<IMGroup, Long> {
+public interface IMGroupRepository extends QuerydslR2dbcRepository<IMGroup, Long> {
 
 }

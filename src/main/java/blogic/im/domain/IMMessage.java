@@ -1,19 +1,21 @@
 package blogic.im.domain;
 
-import blogic.core.domain.BaseEntity;
 import blogic.im.*;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
+import java.time.LocalDateTime;
+
 @Setter
 @Getter
 @Table("im_message")
-public class IMMessage extends BaseEntity {
+public class IMMessage {
 
     @Id
     private Long id;
@@ -27,6 +29,14 @@ public class IMMessage extends BaseEntity {
     private MsgType msgType;
     @Column("content")
     private String content;
+    @Column("create_time")
+    @NotNull
+    private LocalDateTime createTime;
+    @Column("update_time")
+    private LocalDateTime updateTime;
+    @Column("deleted")
+    @NotNull
+    private Boolean deleted = false;
 
     public AbstractContent getContent() {
         JSONObject obj = JSONUtil.parseObj(this.content);

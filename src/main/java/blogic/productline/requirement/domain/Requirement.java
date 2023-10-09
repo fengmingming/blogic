@@ -1,16 +1,18 @@
 package blogic.productline.requirement.domain;
 
-import blogic.core.domain.BaseEntity;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
+import java.time.LocalDateTime;
+
 @Setter
 @Getter
 @Table("requirement")
-public class Requirement extends BaseEntity {
+public class Requirement {
 
     @Id
     private Long id;
@@ -26,6 +28,14 @@ public class Requirement extends BaseEntity {
     private Integer requirementStatus;
     @Column("create_user_id")
     private Long createUserId;
+    @Column("create_time")
+    @NotNull
+    private LocalDateTime createTime;
+    @Column("update_time")
+    private LocalDateTime updateTime;
+    @Column("deleted")
+    @NotNull
+    private Boolean deleted = false;
 
     public RequirementStatus getRequirementStatusEnum() {
         if(this.requirementStatus == null) return null;

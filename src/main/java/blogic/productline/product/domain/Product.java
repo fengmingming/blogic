@@ -1,8 +1,9 @@
 package blogic.productline.product.domain;
 
 import blogic.core.context.SpringContext;
-import blogic.core.domain.BaseEntity;
 import blogic.productline.product.domain.repository.ProductRepository;
+import com.querydsl.core.annotations.QuerySupertype;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
@@ -10,10 +11,13 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import reactor.core.publisher.Flux;
 
+import java.time.LocalDateTime;
+
 @Setter
 @Getter
 @Table("product")
-public class Product extends BaseEntity {
+@QuerySupertype
+public class Product {
 
     @Id
     private Long id;
@@ -25,6 +29,14 @@ public class Product extends BaseEntity {
     private String productDesc;
     @Column("create_user_id")
     private Long createUserId;
+    @Column("create_time")
+    @NotNull
+    private LocalDateTime createTime;
+    @Column("update_time")
+    private LocalDateTime updateTime;
+    @Column("deleted")
+    @NotNull
+    private Boolean deleted = false;
 
     public Flux<Long> getMembers() {
         if(this.id == null) return Flux.empty();

@@ -1,17 +1,16 @@
 package blogic.im.domain.repository;
 
 import blogic.im.domain.IMMessage;
+import com.infobip.spring.data.r2dbc.QuerydslR2dbcRepository;
 import org.springframework.data.r2dbc.repository.Query;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 
 import java.util.Collection;
-import java.util.List;
 
 @Repository
-public interface IMMessageRepository extends R2dbcRepository<IMMessage, Long> {
+public interface IMMessageRepository extends QuerydslR2dbcRepository<IMMessage, Long> {
 
 
     default Flux<IMMessage> findMessagesByFromUserId(@Param("userId") long userId, @Param("lastMsgId") long lastMsgId) {
