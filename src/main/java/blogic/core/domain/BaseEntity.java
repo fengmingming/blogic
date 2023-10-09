@@ -1,7 +1,5 @@
 package blogic.core.domain;
 
-import com.querydsl.core.annotations.QueryEntity;
-import jakarta.persistence.MappedSuperclass;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,8 +9,6 @@ import java.time.LocalDateTime;
 
 @Setter
 @Getter
-@MappedSuperclass
-@QueryEntity
 public class BaseEntity {
 
     @Column("create_time")
