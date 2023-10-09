@@ -144,7 +144,7 @@ public class CompanyRest {
         private Long userId;
     }
 
-    @PutMapping("/Companies/{companyId}/Departments/{departmentId}")
+    @PutMapping(value="/Companies/{companyId}/Departments/{departmentId}", params = "action=bindUser")
     public Mono<ResVo<?>> bindUser(@PathVariable("companyId") Long companyId, @PathVariable("departmentId") Long departmentId,
                                    UserCurrentContext context, @RequestBody @Valid BindUserReq req) {
         context.equalsCompanyIdOrThrowException(companyId);

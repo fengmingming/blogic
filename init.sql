@@ -76,7 +76,7 @@ create table blogic.department(
     update_time datetime null comment '修改时间',
     deleted tinyint not null default 0 comment '0否 1已删除',
     primary key (id),
-    key companyId (companyId)
+    key company_id (company_id)
 )engine=INNODB default charset=utf8mb4 comment='部门';
 
 create table blogic.user_department (
@@ -109,13 +109,13 @@ create table blogic.product_member (
     unique key product_user (product_id, user_id)
 )engine=INNODB default charset=utf8mb4 comment='产品成员表';
 
-create table blogic.product_requirment(
+create table blogic.requirement(
     id bigint not null auto_increment comment '需求id',
     product_id bigint not null comment '产品id',
-    requirment_name varchar(254) not null comment '需求名称',
-    requirment_sources varchar(254) null comment '需求来源',
-    requirment_desc text null comment '需求描述',
-    external_url varchar(2048) null comment '外部链接',
+    requirement_name varchar(254) not null comment '需求名称',
+    requirement_sources varchar(254) null comment '需求来源',
+    requirement_desc text null comment '需求描述',
+    requirement_status int not null comment '需求状态 10已确认 20已规划 30开发中 40已实现 50已发布 60已关闭',
     create_user_id bigint not null comment '创建用户id',
     create_time datetime not null comment '创建时间',
     update_time datetime null comment '修改时间',

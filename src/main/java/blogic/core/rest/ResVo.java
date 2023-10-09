@@ -4,6 +4,7 @@ import blogic.core.context.SpringContext;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Collection;
 import java.util.Locale;
 
 @Setter
@@ -17,6 +18,15 @@ public class ResVo<T> {
     public static <T> ResVo<T> success(T data) {
         ResVo<T> resVo = new ResVo<>();
         resVo.setData(data);
+        return resVo;
+    }
+
+    public static <T> ResVo<PagedVo<T>> success(long total, Collection<T> records) {
+        PagedVo<T> pagedVo = new PagedVo<>();
+        pagedVo.setRecords(records);
+        pagedVo.setTotal(total);
+        ResVo<PagedVo<T>> resVo = new ResVo<>();
+        resVo.setData(pagedVo);
         return resVo;
     }
 
