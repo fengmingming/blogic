@@ -3,11 +3,18 @@ package blogic.core.rest;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Collection;
-
 @Setter
 @Getter
-public class Paging<T> {
+public class Paging {
     private int pageNum = 1;
     private int pageSize = 100;
+
+    public long getLimit() {
+        return this.pageSize;
+    }
+
+    public long getOffset() {
+        return (pageNum - 1) * pageSize;
+    }
+
 }
