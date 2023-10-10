@@ -21,6 +21,7 @@ logging:
   level:
     root: info
     blogic: debug
+    blogic.core: info
     org.springframework.r2dbc: debug
 
 blogic:

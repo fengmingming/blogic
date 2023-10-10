@@ -17,6 +17,7 @@ public class Company {
     @Id
     private Long id;
     @Column("company_name")
+    @NotNull
     private String companyName;
     @Column("create_time")
     @NotNull

@@ -53,7 +53,7 @@ public class UserService {
         user.setUpdateTime(user.getCreateTime());
 
         Company company = new Company();
-        company.setCompanyName(user.getName());
+        company.setCompanyName("default company");
         company.setCreateTime(LocalDateTime.now());
         company.setUpdateTime(LocalDateTime.now());
 

@@ -22,7 +22,8 @@ public class UserCurrentContext implements Serializable {
     private List<RoleEnum> authorities = new ArrayList<>();
 
     public boolean equalsCompanyId(long companyId) {
-        return this.equals(companyId);
+        verifyContextSelected();
+        return this.companyId.equals(companyId);
     }
 
     public void equalsCompanyIdOrThrowException(long companyId) {
@@ -38,6 +39,7 @@ public class UserCurrentContext implements Serializable {
     }
 
     public boolean authenticate(boolean and, RoleEnum ... roles) {
+        verifyContextSelected();
         if(and) {
             return this.authorities.containsAll(Arrays.asList(roles));
         }else {
@@ -53,6 +55,12 @@ public class UserCurrentContext implements Serializable {
     public void authenticateOrThrowException(boolean and, RoleEnum ... roles) {
         if(!authenticate(and, roles)) {
             throw new ForbiddenAccessException();
+        }
+    }
+
+    private void verifyContextSelected() {
+        if(this.companyId == null) {
+            throw new NotSelectUserCurrentContextException();
         }
     }
 

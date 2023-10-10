@@ -7,22 +7,23 @@ import blogic.core.security.UserCurrentContext;
 import blogic.productline.product.domain.QProduct;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.product.service.ProductService;
-import blogic.productline.requirement.domain.QRequirement;
+import blogic.user.domain.QUser;
 import blogic.user.domain.RoleEnum;
-import blogic.user.domain.User;
 import blogic.user.domain.repository.UserRepository;
-import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.querydsl.core.types.Projections;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 
 @RestController
 public class ProductRest {
@@ -34,21 +35,33 @@ public class ProductRest {
     @Autowired
     private UserRepository userRepository;
 
-    @GetMapping("/Company/{companyId}/Products")
+    @Setter
+    @Getter
+    public static class FindProductRes {
+        private Long id;
+        private Long companyId;
+        private String productName;
+        private String productDesc;
+        private Long createUserId;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime createTime;
+        @Column("createUserName")
+        private String createUserName;
+    }
+
+    @GetMapping("/Companies/{companyId}/Products")
     public Mono<ResVo<?>> findProducts(@PathVariable("companyId")Long companyId, TokenInfo tokenInfo,
                                        UserCurrentContext context, @RequestBody Paging paging) {
         context.equalsCompanyIdOrThrowException(companyId);
         if(context.authenticate(RoleEnum.ROLE_MANAGER)) {
             QProduct qProduct = QProduct.product;
-            return productRepository.query(query -> query.select(qProduct).from(qProduct).where(qProduct.companyId.eq(companyId))
-                .offset(paging.getOffset()).limit(paging.getLimit())).all().collectList().flatMap(products -> {
-                    List<Long> userIds = products.stream().map(it -> it.getCreateUserId()).collect(Collectors.toList());
-                    return userRepository.findAllById(userIds).collectList().map(users -> {
-                        Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, Function.identity()));
-                        return products.stream().map(it -> JSONUtil.parseObj(it)
-                            .putOnce("userName", userMap.get(it.getCreateUserId()).getName())).collect(Collectors.toList());
-                    });
-                }).map(it -> ResVo.success(it));
+            QUser qUser = QUser.user;
+            return productRepository.query(query -> query.select(Projections.bean(FindProductRes.class, qProduct, qUser.name.as("createUserName")))
+                .from(qProduct)
+                .leftJoin(qUser).on(qProduct.createUserId.eq(qUser.id))
+                .where(qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false)))
+                .offset(paging.getOffset()).limit(paging.getLimit())).all().collectList()
+                .map(t -> ResVo.success(t));
         }else {
 
         }

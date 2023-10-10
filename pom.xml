@@ -51,7 +51,7 @@
     <dependency>
       <groupId>com.infobip</groupId>
       <artifactId>infobip-spring-data-r2dbc-querydsl-boot-starter</artifactId>
-      <version>9.0.2</version>
+      <version>8.1.2</version>
     </dependency>
 
     <dependency>

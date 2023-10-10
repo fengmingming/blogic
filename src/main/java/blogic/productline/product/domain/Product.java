@@ -2,7 +2,6 @@ package blogic.productline.product.domain;
 
 import blogic.core.context.SpringContext;
 import blogic.productline.product.domain.repository.ProductRepository;
-import com.querydsl.core.annotations.QuerySupertype;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +15,6 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Table("product")
-@QuerySupertype
 public class Product {
 
     @Id
@@ -38,7 +36,7 @@ public class Product {
     @NotNull
     private Boolean deleted = false;
 
-    public Flux<Long> getMembers() {
+    public Flux<Long> findMembers() {
         if(this.id == null) return Flux.empty();
         return SpringContext.INSTANCE().getBean(ProductRepository.class).findMembersByProductId(this.id);
     }
