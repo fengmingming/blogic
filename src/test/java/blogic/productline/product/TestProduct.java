@@ -26,7 +26,7 @@ public class TestProduct {
         TokenInfo tokenInfo = TokenInfo.builder().userId(31L).build();
         UserCurrentContext context = new UserCurrentContext();
         context.setCompanyId(1L);
-        context.getAuthorities().add(RoleEnum.ROLE_MANAGER);
+        context.getAuthorities().add(RoleEnum.ROLE_DEVELOPER);
         System.out.println(JSONUtil.toJsonStr(productRest.findProducts(1L, tokenInfo,
                 context, Paging.builder().pageNum(1).pageSize(10).build()).block()));
     }
