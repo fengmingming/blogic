@@ -90,7 +90,8 @@ public class ProductRest {
     }
 
     @PostMapping("/Companies/{companyId}/Products")
-    public Mono<ResVo<?>> createProduct(@PathVariable("companyId") Long companyId, TokenInfo tokenInfo, UserCurrentContext context, @RequestBody @Valid CreateProductReq req) {
+    public Mono<ResVo<?>> createProduct(@PathVariable("companyId") Long companyId, TokenInfo tokenInfo,
+                                        UserCurrentContext context, @RequestBody @Valid CreateProductReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         context.authenticateOrThrowException(RoleEnum.ROLE_PM);
 
@@ -101,6 +102,29 @@ public class ProductRest {
         command.setCompanyId(companyId);
         command.setMembers(req.getUserIds());
         return productService.createProduct(command).flatMap(it -> Mono.just(ResVo.success(it)));
+    }
+
+    @Setter
+    @Getter
+    public static class UpdateProductReq {
+        @NotBlank
+        @Length(max = 254)
+        private String productName;
+        private String productDesc;
+        private List<Long> userIds;
+    }
+
+    @PutMapping("/Companies/{companyId}/Products/{productId}")
+    public Mono<ResVo<?>> createProduct(@PathVariable("companyId") Long companyId, @PathVariable("productId")Long productId,
+                                        UserCurrentContext context, @RequestBody @Valid UpdateProductReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        context.authenticateOrThrowException(RoleEnum.ROLE_PM);
+        ProductService.UpdateProductCommand command = new ProductService.UpdateProductCommand();
+        command.setProductId(productId);
+        command.setProductName(req.getProductName());
+        command.setProductDesc(req.getProductDesc());
+        command.setMembers(req.getUserIds());
+        return productService.updateProduct(command).then(Mono.just(ResVo.success()));
     }
 
 }

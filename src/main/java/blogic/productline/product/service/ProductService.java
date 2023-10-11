@@ -4,8 +4,8 @@ import blogic.productline.product.domain.Product;
 import blogic.productline.product.domain.ProductMember;
 import blogic.productline.product.domain.repository.ProductMemberRepository;
 import blogic.productline.product.domain.repository.ProductRepository;
-import blogic.user.domain.User;
 import blogic.user.domain.repository.UserRepository;
+import cn.hutool.core.collection.CollectionUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Validated
@@ -58,11 +59,41 @@ public class ProductService {
         product.setProductDesc(command.getProductDesc());
         product.setCreateUserId(command.getCreateUserId());
         product.setCreateTime(LocalDateTime.now());
-        Flux<User> users = userRepository.findAllById(command.getMembers());
-        return productRepository.save(product).flatMap(p -> users.collectList()
-            .map(its -> p.addMembers(its))
-            .flatMapMany(members -> productMemberRepository.saveAll(members))
-            .then(Mono.just(p.getId())));
+        return productRepository.save(product).flatMap(p ->
+            productMemberRepository.saveAll(p.addMembers(command.getMembers())).then(Mono.just(p.getId()))
+        );
+    }
+
+    @Setter
+    @Getter
+    public static class UpdateProductCommand {
+        @NotNull
+        private Long productId;
+        @NotBlank
+        @Length(max = 254)
+        private String productName;
+        private String productDesc;
+        private List<Long> members;
+    }
+
+    @Transactional
+    public Mono<Void> updateProduct(@NotNull @Valid UpdateProductCommand command) {
+        Mono<Product> productMono = productRepository.findById(command.getProductId());
+        return productMono.doOnNext(it -> {
+            it.setProductName(command.getProductName());
+            it.setProductDesc(command.getProductDesc());
+        })
+        .flatMap(it -> productRepository.save(it))
+        .flatMap(p -> {
+            Flux<ProductMember> members = p.findMembers();
+            return members.collectList().flatMap(its -> {
+                List<Long> userIds = its.stream().map(it -> it.getUserId()).collect(Collectors.toList());
+                List<Long> addUserIds = CollectionUtil.subtractToList(command.getMembers(), userIds);
+                List<Long> removedUserIds = CollectionUtil.subtractToList(userIds, command.getMembers());
+                return productMemberRepository.saveAll(p.addMembers(addUserIds))
+                .then(productMemberRepository.deleteAll(p.removeMembers(removedUserIds)));
+            });
+        });
     }
 
 }
