@@ -2,6 +2,7 @@ package blogic.productline.product.service;
 
 import blogic.productline.product.domain.Product;
 import blogic.productline.product.domain.ProductMember;
+import blogic.productline.product.domain.QProduct;
 import blogic.productline.product.domain.repository.ProductMemberRepository;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.user.domain.repository.UserRepository;
@@ -94,6 +95,13 @@ public class ProductService {
                 .then(productMemberRepository.deleteAll(p.removeMembers(removedUserIds)));
             });
         });
+    }
+
+    @Transactional
+    public Mono<Void> deleteProduct(Long productId) {
+        return productRepository.update(update ->
+                update.set(QProduct.product.deleted, true)
+                        .where(QProduct.product.id.eq(productId))).then();
     }
 
 }

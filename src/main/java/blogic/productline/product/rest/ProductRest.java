@@ -1,5 +1,6 @@
 package blogic.productline.product.rest;
 
+import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
@@ -11,6 +12,7 @@ import blogic.productline.product.service.ProductService;
 import blogic.user.domain.QUser;
 import blogic.user.domain.RoleEnum;
 import blogic.user.domain.repository.UserRepository;
+import cn.hutool.core.collection.CollectionUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -52,7 +55,7 @@ public class ProductRest {
 
     @GetMapping("/Companies/{companyId}/Products")
     public Mono<ResVo<?>> findProducts(@PathVariable("companyId") Long companyId, TokenInfo tokenInfo,
-                                       UserCurrentContext context, @RequestBody Paging paging) {
+                                       UserCurrentContext context, Paging paging) {
         context.equalsCompanyIdOrThrowException(companyId);
         if (context.authenticate(RoleEnum.ROLE_MANAGER)) {
             QProduct qProduct = QProduct.product;
@@ -86,7 +89,7 @@ public class ProductRest {
         @Length(max = 254)
         private String productName;
         private String productDesc;
-        private List<Long> userIds;
+        private List<Long> userIds = new ArrayList<>();
     }
 
     @PostMapping("/Companies/{companyId}/Products")
@@ -94,7 +97,9 @@ public class ProductRest {
                                         UserCurrentContext context, @RequestBody @Valid CreateProductReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         context.authenticateOrThrowException(RoleEnum.ROLE_PM);
-
+        if(CollectionUtil.isEmpty(req.getUserIds()) || !req.getUserIds().contains(tokenInfo.getUserId())) {
+            req.getUserIds().add(tokenInfo.getUserId());
+        }
         ProductService.CreateProductCommand command = new ProductService.CreateProductCommand();
         command.setCreateUserId(tokenInfo.getUserId());
         command.setProductName(req.getProductName());
@@ -115,16 +120,33 @@ public class ProductRest {
     }
 
     @PutMapping("/Companies/{companyId}/Products/{productId}")
-    public Mono<ResVo<?>> createProduct(@PathVariable("companyId") Long companyId, @PathVariable("productId")Long productId,
-                                        UserCurrentContext context, @RequestBody @Valid UpdateProductReq req) {
+    public Mono<ResVo<?>> updateProduct(@PathVariable("companyId") Long companyId, @PathVariable("productId")Long productId,
+                                        TokenInfo tokenInfo, UserCurrentContext context, @RequestBody @Valid UpdateProductReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         context.authenticateOrThrowException(RoleEnum.ROLE_PM);
+        if(CollectionUtil.isEmpty(req.getUserIds()) || !req.getUserIds().contains(tokenInfo.getUserId())) {
+            req.getUserIds().add(tokenInfo.getUserId());
+        }
         ProductService.UpdateProductCommand command = new ProductService.UpdateProductCommand();
         command.setProductId(productId);
         command.setProductName(req.getProductName());
         command.setProductDesc(req.getProductDesc());
         command.setMembers(req.getUserIds());
-        return productService.updateProduct(command).then(Mono.just(ResVo.success()));
+        return productRepository.findById(productId).filter(it -> it.getCreateUserId().equals(tokenInfo.getUserId()))
+                .switchIfEmpty(Mono.error(new ForbiddenAccessException()))
+                .then(productService.updateProduct(command).then(Mono.just(ResVo.success())));
+    }
+
+    @DeleteMapping("/Companies/{companyId}/Products/{productId}")
+    public Mono<ResVo<?>> deleteProduct(@PathVariable("companyId") Long companyId,
+                                        @PathVariable("productId")Long productId,
+                                        TokenInfo tokenInfo, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        context.authenticateOrThrowException(RoleEnum.ROLE_PM);
+        return productRepository.findById(productId).filter(it -> it.getCreateUserId().equals(tokenInfo.getUserId()))
+                .switchIfEmpty(Mono.error(new ForbiddenAccessException()))
+                .then(productService.deleteProduct(productId))
+                .then(Mono.just(ResVo.success()));
     }
 
 }

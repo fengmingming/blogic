@@ -1,10 +1,11 @@
 package blogic.productline.requirement.domain;
 
+import blogic.core.enums.IDigitalizedEnum;
 import blogic.core.exception.IllegalEnumValueException;
 import lombok.Getter;
 
 @Getter
-public enum RequirementStatus {
+public enum RequirementStatus implements IDigitalizedEnum {
 
     Confirmed(10, "已确认"),
     Scheduled(20, "已规划"),
