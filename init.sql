@@ -180,3 +180,52 @@ create table blogic.task(
     key complete_user_id(complete_user_id)
 )engine=INNODB default charset=utf8mb4 comment '任务表';
 
+
+create table blogic.test_case(
+    id bigint not null auto_increment comment '用例id',
+    iteration_id bigint not null comment '迭代id',
+	requirement_id bigint null comment '相关需求id',
+    title varchar(254) not null comment '用例标题',
+    priority int not null default 4 comment '1最高4最低',
+    precondition varchar(1000) null comment '前置条件',
+    owner_user_id bigint null comment '用例负责人',
+    smoke int not null default 0 comment '0否1是',
+    status int not null default 10 comment '10未开始 20测试中 30被阻塞 40已完成',
+    complete_time datetime null comment '完成时间',
+    create_user_id bigint not null comment '创建用户id',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0否 1已删除',
+    primary key (id),
+    key owner_user_id (owner_user_id),
+    key iteration_id_requirement_id (iteration_id, requirement_id)
+)engine=INNODB default charset=utf8mb4 comment '测试用例';
+
+create table blogic.test_case_step(
+	id bigint not null auto_increment comment '步骤id',
+    test_case_id bigint not null comment '用例id',
+    num decimal(10,2) not null default 1 comment '编号',
+    step varchar(1000) not null comment '步骤',
+    expected_result varchar(1000) not null comment '预期结果',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0否 1已删除',
+    primary key (id),
+    key test_case_id (test_case_id)
+)engine=INNODB default charset=utf8mb4 comment '测试用例步骤';
+
+create table bug (
+	id bigint not null comment 'bug的id',
+    test_case_id bigint null comment '测试用例',
+    requirement_id bigint null comment '需求id',
+    iteration_id bigint null comment '迭代id',
+    product_id bigint not null comment '产品id',
+	title varchar(100) not null comment '标题',
+    bug_type int not null default 1 comment 'bug类型',
+    status int not null default 10 comment '状态',
+    repro_steps text null comment '重现步骤',
+    severity int not null default 4 comment '严重程度 1最大 4最小',
+    priority int not null default 4 comment '优先级 1最大 4最小',
+    current_user_id bigint null comment '当前指派人',
+
+)
