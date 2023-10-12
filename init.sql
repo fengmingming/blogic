@@ -124,3 +124,59 @@ create table blogic.requirement(
     key product_id (product_id)
 )engine=INNODB default charset=utf8mb4 comment='需求表';
 
+
+create table blogic.iteration (
+    id bigint not null auto_increment comment '迭代id',
+    product_id bigint not null comment '产品id',
+    version_code varchar(50) not null comment '迭代号',
+    name varchar(254) not null comment '迭代名称',
+    scheduled_start_time datetime null comment '迭代开始时间',
+    scheduled_end_time datetime null comment '迭代结束时间',
+    status int not null comment '迭代状态 10未开始 20进行中 30已完成',
+    create_user_id bigint not null comment '创建用户id',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0否 1已删除',
+    primary key (id),
+    key product_id (product_id)
+)engine=INNODB default charset=utf8mb4 comment '迭代';
+
+create table blogic.iteration_member(
+    id bigint not null auto_increment comment '',
+    iteration_id bigint not null comment '迭代id',
+    user_id bigint not null comment '用户id',
+    primary key (id),
+    unique key iteration_user(iteration_id,user_id)
+)engine=INNODB default charset=utf8mb4 comment '迭代成员';
+
+create table blogic.iteration_requirement(
+    id bigint not null auto_increment comment '',
+    iteration_id bigint not null comment '迭代id',
+    requirement_id bigint not null comment '需求id',
+    primary key (id),
+    unique key iteration_requirement_id(iteration_id,requirement_id)
+)engine=INNODB default charset=utf8mb4 comment '迭代中的需求';
+
+create table blogic.task(
+    id bigint not null auto_increment comment '任务id',
+    iteration_id bigint not null comment '迭代id',
+    task_name varchar(254) not null comment '任务名称',
+    task_desc text null comment '任务描述',
+    status int not null comment '任务状态 10未开始 20进行中 30已完成',
+    current_user_id bigint null comment '指派给',
+    complete_user_id bigint null comment '完成用户id',
+    start_time datetime null comment '任务开始时间',
+    end_time datetime null comment '任务结束时间',
+    all_time int null comment '计划时间',
+    consume_time int null comment '消耗时间',
+    create_user_id bigint not null comment '创建用户id',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0否 1已删除',
+    primary key (id),
+    key iteration_id(iteration_id),
+    key current_user_id(current_user_id),
+    key create_user_id(create_user_id),
+    key complete_user_id(complete_user_id)
+)engine=INNODB default charset=utf8mb4 comment '任务表';
+
