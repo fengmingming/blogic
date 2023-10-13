@@ -214,18 +214,44 @@ create table blogic.test_case_step(
     key test_case_id (test_case_id)
 )engine=INNODB default charset=utf8mb4 comment '测试用例步骤';
 
-create table bug (
-	id bigint not null comment 'bug的id',
+
+create table blogic.bug (
+	id bigint not null auto_increment comment 'bug的id',
     test_case_id bigint null comment '测试用例',
     requirement_id bigint null comment '需求id',
     iteration_id bigint null comment '迭代id',
     product_id bigint not null comment '产品id',
+    iteration_version varchar(50) null comment '影响版本号',
 	title varchar(100) not null comment '标题',
-    bug_type int not null default 1 comment 'bug类型',
-    status int not null default 10 comment '状态',
+    bug_type int not null comment 'bug类型 字典bug_type',
+    env int not null comment '环境编号 字典bug_env',
+    device varchar(100) null comment '设备',
     repro_steps text null comment '重现步骤',
-    severity int not null default 4 comment '严重程度 1最大 4最小',
-    priority int not null default 4 comment '优先级 1最大 4最小',
+    status int not null default 10 comment '状态',
+    severity int not null default 4 comment '严重程度 1最大 4最小 字典 bug_severity',
+    priority int not null default 4 comment '优先级 1最大 4最小 字典 bug_priority',
     current_user_id bigint null comment '当前指派人',
+    fix_user_id bigint null comment 'bug解决人',
+    fix_solution int null comment '解决方案 字典 bug_fix_solution',
+    fix_version varchar(50) null comment '解决方案',
+    create_user_id bigint not null comment '创建用户id',
+    create_time datetime not null comment '创建时间',
+    update_time datetime null comment '修改时间',
+    deleted tinyint not null default 0 comment '0否 1已删除',
+    primary key (id),
+    key create_user_id (current_user_id),
+    key fix_user_id (fix_user_id),
+    key product_id (product_id)
+)engine=INNODB default charset=utf8mb4 comment 'bug';
 
-)
+create table blogic.bug_notes (
+    id bigint not null auto_increment comment '',
+    bug_id bigint not null comment 'bug的id',
+    notes text null comment '备注',
+    create_user_id bigint not null comment '创建用户id',
+    create_time datetime not null comment '创建时间',
+    primary key (id),
+    key bug_id (bug_id)
+)engine=INNODB default charset=utf8mb4 comment 'bug备注';
+
+
