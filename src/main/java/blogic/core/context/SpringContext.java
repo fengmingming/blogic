@@ -3,7 +3,11 @@ package blogic.core.context;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+
+import java.util.Locale;
+import java.util.Map;
 
 @Component
 public class SpringContext implements ApplicationContextAware {
@@ -17,6 +21,26 @@ public class SpringContext implements ApplicationContextAware {
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         context = applicationContext;
+    }
+
+    public static <T> T getBean(Class<T> clazz) {
+        return SpringContext.INSTANCE().getBean(clazz);
+    }
+
+    public static <T> T getBean(String beanName, Class<T> clazz) {
+        return SpringContext.INSTANCE().getBean(beanName, clazz);
+    }
+
+    public static <T> Map<String, T> getBeansOfType(Class<T> clazz) {
+        return SpringContext.INSTANCE().getBeansOfType(clazz);
+    }
+
+    public static Environment getEnvironment() {
+        return SpringContext.INSTANCE().getEnvironment();
+    }
+
+    public static String getMessage(int code, Locale locale, Object ... args) {
+        return SpringContext.INSTANCE().getMessage(String.valueOf(code), args, locale);
     }
 
 }
