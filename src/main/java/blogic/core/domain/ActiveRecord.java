@@ -7,11 +7,7 @@ public abstract class ActiveRecord<T, ID> {
 
     protected abstract ReactiveCrudRepository<T, ID> findRepository();
 
-    private <S extends T> S selfS() {
-        return selfT();
-    }
-
-    protected abstract <T> T selfT();
+    protected abstract <S extends T> S selfS();
 
     public <S extends T> Mono<S> insert() {
         return findRepository().save(selfS());

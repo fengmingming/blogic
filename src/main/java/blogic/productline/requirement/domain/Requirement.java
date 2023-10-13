@@ -55,8 +55,8 @@ public class Requirement extends ActiveRecord<Requirement, Long> {
     }
 
     @Override
-    protected Requirement selfT() {
-        return this;
+    protected <S extends Requirement> S selfS() {
+        return (S) this;
     }
 
 }
