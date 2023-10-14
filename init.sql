@@ -139,7 +139,7 @@ create table blogic.iteration (
     deleted tinyint not null default 0 comment '0否 1已删除',
     primary key (id),
     key product_id (product_id)
-)engine=INNODB default charset=utf8mb4 comment '迭代';
+)engine=INNODB default charset=utf8mb4 comment='迭代';
 
 create table blogic.iteration_member(
     id bigint not null auto_increment comment '',
@@ -147,7 +147,7 @@ create table blogic.iteration_member(
     user_id bigint not null comment '用户id',
     primary key (id),
     unique key iteration_user(iteration_id,user_id)
-)engine=INNODB default charset=utf8mb4 comment '迭代成员';
+)engine=INNODB default charset=utf8mb4 comment='迭代成员';
 
 create table blogic.iteration_requirement(
     id bigint not null auto_increment comment '',
@@ -155,7 +155,7 @@ create table blogic.iteration_requirement(
     requirement_id bigint not null comment '需求id',
     primary key (id),
     unique key iteration_requirement_id(iteration_id,requirement_id)
-)engine=INNODB default charset=utf8mb4 comment '迭代中的需求';
+)engine=INNODB default charset=utf8mb4 comment='迭代中的需求';
 
 create table blogic.task(
     id bigint not null auto_increment comment '任务id',
@@ -178,7 +178,7 @@ create table blogic.task(
     key current_user_id(current_user_id),
     key create_user_id(create_user_id),
     key complete_user_id(complete_user_id)
-)engine=INNODB default charset=utf8mb4 comment '任务表';
+)engine=INNODB default charset=utf8mb4 comment='任务表';
 
 
 create table blogic.test_case(
@@ -189,7 +189,7 @@ create table blogic.test_case(
     priority int not null default 4 comment '1最高4最低',
     precondition varchar(1000) null comment '前置条件',
     owner_user_id bigint null comment '用例负责人',
-    smoke int not null default 0 comment '0否1是',
+    smoke tinyint not null default 0 comment '0否1是',
     status int not null default 10 comment '10未开始 20测试中 30被阻塞 40已完成',
     complete_time datetime null comment '完成时间',
     create_user_id bigint not null comment '创建用户id',
@@ -199,12 +199,12 @@ create table blogic.test_case(
     primary key (id),
     key owner_user_id (owner_user_id),
     key iteration_id_requirement_id (iteration_id, requirement_id)
-)engine=INNODB default charset=utf8mb4 comment '测试用例';
+)engine=INNODB default charset=utf8mb4 comment='测试用例';
 
 create table blogic.test_case_step(
 	id bigint not null auto_increment comment '步骤id',
     test_case_id bigint not null comment '用例id',
-    num decimal(10,2) not null default 1 comment '编号',
+    number varchar(50) not null comment '编号',
     step varchar(1000) not null comment '步骤',
     expected_result varchar(1000) not null comment '预期结果',
     create_time datetime not null comment '创建时间',
@@ -212,7 +212,7 @@ create table blogic.test_case_step(
     deleted tinyint not null default 0 comment '0否 1已删除',
     primary key (id),
     key test_case_id (test_case_id)
-)engine=INNODB default charset=utf8mb4 comment '测试用例步骤';
+)engine=INNODB default charset=utf8mb4 comment='测试用例步骤';
 
 
 create table blogic.bug (
@@ -242,16 +242,18 @@ create table blogic.bug (
     key create_user_id (current_user_id),
     key fix_user_id (fix_user_id),
     key product_id (product_id)
-)engine=INNODB default charset=utf8mb4 comment 'bug';
+)engine=INNODB default charset=utf8mb4 comment='bug';
 
-create table blogic.bug_notes (
+create table blogic.change_record (
     id bigint not null auto_increment comment '',
-    bug_id bigint not null comment 'bug的id',
-    notes text null comment '备注',
-    create_user_id bigint not null comment '创建用户id',
+    primary_key bigint not null comment '主键id',
+    key_type int not null comment '主键类型',
+    oper_user_id bigint null comment '操作用户id',
+    oper_desc varchar(254) not null comment '操作描述',
+    note text null comment '备注',
     create_time datetime not null comment '创建时间',
     primary key (id),
-    key bug_id (bug_id)
-)engine=INNODB default charset=utf8mb4 comment 'bug备注';
+    key primary_key_type (primary_key, key_type)
+)engine=INNODB default charset=utf8mb4 comment='变更记录';
 
 
