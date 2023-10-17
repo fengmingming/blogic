@@ -3,7 +3,8 @@ package blogic.changerecord.domain;
 import blogic.changerecord.domain.repository.ChangeRecordRepository;
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -13,9 +14,6 @@ import java.time.LocalDateTime;
 
 @Setter
 @Getter
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
 @Table("change_record")
 public class ChangeRecord extends ActiveRecord<ChangeRecord, Long> {
 

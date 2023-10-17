@@ -11,19 +11,24 @@ import blogic.productline.iteration.service.IterationService;
 import blogic.productline.product.domain.QProduct;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.user.domain.QUser;
+import cn.hutool.core.collection.CollectionUtil;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 public class IterationRest {
@@ -88,6 +93,47 @@ public class IterationRest {
                return Mono.error(new ForbiddenAccessException());
             }
         }).collectList().flatMap(it -> Mono.just(ResVo.success(it)));
+    }
+
+    @Setter
+    @Getter
+    public static class CreateIterationReq {
+        @NotNull
+        @Length(max = 50)
+        private String versionCode;
+        @NotNull
+        @Length(max = 254)
+        private String name;
+        private LocalDateTime scheduledStartTime;
+        private LocalDateTime scheduledEndTime;
+        private List<Long> userIds;
+    }
+
+    @PostMapping("/Companies/{companyId}/Products/{productId}/Iteration")
+    public Mono<ResVo<?>> createIteration(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
+                                          TokenInfo tokenInfo, UserCurrentContext context, @RequestBody @Valid CreateIterationReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        return productRepository.verifyProductBelongToCompany(productId, companyId).flatMap(it -> {
+            if(it) {
+                Mono<List<Long>> usersMono = productRepository.findById(productId).flatMapMany(p -> p.findMembers()).collectList().map(its -> its.stream().map(u -> u.getUserId()).collect(Collectors.toList()));
+                if(CollectionUtil.isNotEmpty(req.getUserIds())) {
+                    usersMono = usersMono.map(its -> new ArrayList<>(CollectionUtil.intersection(its, req.getUserIds())));
+                }
+                return usersMono.flatMap(its -> {
+                    IterationService.CreateIterationCommand command = new IterationService.CreateIterationCommand();
+                    command.setProductId(productId);
+                    command.setName(req.getName());
+                    command.setVersionCode(req.getVersionCode());
+                    command.setScheduledStartTime(req.getScheduledStartTime());
+                    command.setScheduledEndTime(req.getScheduledEndTime());
+                    command.setCreateUserId(tokenInfo.getUserId());
+                    command.setUserIds(its);
+                    return iterationService.createIteration(command);
+                });
+            }else {
+                return Mono.error(new ForbiddenAccessException());
+            }
+        }).flatMap(it -> Mono.just(ResVo.success()));
     }
 
 }

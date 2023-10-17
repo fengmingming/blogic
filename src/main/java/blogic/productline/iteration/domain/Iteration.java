@@ -51,6 +51,17 @@ public class Iteration extends ActiveRecord<Iteration, Long> {
     @NotNull
     private Boolean deleted = false;
 
+    public void setStatusEnum(IterationStatusEnum statusEnum) {
+        if(statusEnum == null) return;
+        this.setStatus(statusEnum.getCode());
+    }
+
+    public IterationStatusEnum getStatusEnum() {
+        Integer status = getStatus();
+        if(status == null) return null;
+        return IterationStatusEnum.findIterationStatusEnum(status);
+    }
+
     @Override
     protected ReactiveCrudRepository<Iteration, Long> findRepository() {
         return SpringContext.getBean(IterationRepository.class);
