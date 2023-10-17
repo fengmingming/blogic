@@ -9,11 +9,7 @@ public abstract class ActiveRecord<T, ID> {
 
     protected abstract <S extends T> S selfS();
 
-    public <S extends T> Mono<S> insert() {
-        return findRepository().save(selfS());
-    }
-
-    public <S extends T> Mono<S> update() {
+    public <S extends T> Mono<S> save() {
         return findRepository().save(selfS());
     }
 

@@ -41,7 +41,7 @@ public class TestUser {
         user.setCreateTime(LocalDateTime.now());
         user.setPhone(RandomUtil.randomNumbers(11));
         user.setPassword(BCrypt.hashpw("123456"));
-        user.insert().doOnNext(it -> it.setUpdateTime(LocalDateTime.now())).flatMap(it -> it.update().then(it.delete())).block();
+        user.save().doOnNext(it -> it.setUpdateTime(LocalDateTime.now())).flatMap(it -> it.save().then(it.delete())).block();
     }
 
 }
