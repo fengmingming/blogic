@@ -12,6 +12,8 @@ import blogic.productline.iteration.domain.repository.IterationRepository;
 import blogic.productline.iteration.service.IterationService;
 import blogic.productline.product.domain.QProduct;
 import blogic.productline.product.domain.repository.ProductRepository;
+import blogic.productline.requirement.domain.QRequirement;
+import blogic.productline.requirement.domain.RequirementRepository;
 import blogic.user.domain.QUser;
 import cn.hutool.core.collection.CollectionUtil;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -43,6 +45,8 @@ public class IterationRest {
     private IterationService iterationService;
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private RequirementRepository requirementRepository;
 
     @Setter
     @Getter
@@ -111,6 +115,7 @@ public class IterationRest {
         private LocalDateTime scheduledStartTime;
         private LocalDateTime scheduledEndTime;
         private List<Long> userIds;
+        private List<Long> requirementIds;
     }
 
     @PostMapping("/Companies/{companyId}/Products/{productId}/Iteration")
@@ -120,10 +125,15 @@ public class IterationRest {
         return productRepository.verifyProductBelongToCompany(productId, companyId).flatMap(it -> {
             if(it) {
                 Mono<List<Long>> usersMono = productRepository.findById(productId).flatMapMany(p -> p.findMembers()).collectList().map(its -> its.stream().map(u -> u.getUserId()).collect(Collectors.toList()));
+                Mono<List<Long>> requirementsMono = requirementRepository.query(q -> q.select(QRequirement.requirement.id)
+                        .where(QRequirement.requirement.id.in(req.getRequirementIds()).and(QRequirement.requirement.productId.eq(productId))))
+                        .all().collectList();
                 if(CollectionUtil.isNotEmpty(req.getUserIds())) {
                     usersMono = usersMono.map(its -> new ArrayList<>(CollectionUtil.intersection(its, req.getUserIds())));
                 }
-                return usersMono.flatMap(its -> {
+                return Mono.zip(usersMono, requirementsMono).flatMap(tuple2 -> {
+                    List<Long> userIds = tuple2.getT1();
+                    List<Long> requirementIds = tuple2.getT2();
                     IterationService.CreateIterationCommand command = new IterationService.CreateIterationCommand();
                     command.setProductId(productId);
                     command.setName(req.getName());
@@ -131,7 +141,8 @@ public class IterationRest {
                     command.setScheduledStartTime(req.getScheduledStartTime());
                     command.setScheduledEndTime(req.getScheduledEndTime());
                     command.setCreateUserId(tokenInfo.getUserId());
-                    command.setUserIds(its);
+                    command.setUserIds(userIds);
+                    command.setRequirementIds(requirementIds);
                     return iterationService.createIteration(command);
                 });
             }else {
@@ -157,6 +168,7 @@ public class IterationRest {
         @NotNull
         @Size(min = 1)
         private List<Long> userIds;
+        private List<Long> requirementIds;
     }
 
     @PutMapping("/Companies/{companyId}/Products/{productId}/Iteration/{iterationId}")
@@ -173,14 +185,18 @@ public class IterationRest {
                 if(CollectionUtil.isNotEmpty(req.getUserIds())) {
                     usersMono = usersMono.map(its -> new ArrayList<>(CollectionUtil.intersection(its, req.getUserIds())));
                 }
-                return usersMono.flatMap(userIds -> {
+                Mono<List<Long>> requirementsMono = requirementRepository.query(q -> q.select(QRequirement.requirement.id)
+                                .where(QRequirement.requirement.id.in(req.getRequirementIds()).and(QRequirement.requirement.productId.eq(productId))))
+                        .all().collectList();
+                return Mono.zip(usersMono, requirementsMono).flatMap(tuple2 -> {
                     IterationService.UpdateIterationCommand command = new IterationService.UpdateIterationCommand();
                     command.setIterationId(iterationId);
                     command.setName(req.getName());
                     command.setVersionCode(req.getVersionCode());
                     command.setScheduledStartTime(req.getScheduledStartTime());
                     command.setScheduledEndTime(req.getScheduledEndTime());
-                    command.setUserIds(userIds);
+                    command.setUserIds(tuple2.getT1());
+                    command.setRequirementIds(tuple2.getT2());
                     return iterationService.updateIteration(command);
                 });
             })).then(Mono.just(ResVo.success()));

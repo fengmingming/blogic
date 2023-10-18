@@ -4,6 +4,7 @@ import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
 import blogic.productline.iteration.domain.repository.IterationMemberRepository;
 import blogic.productline.iteration.domain.repository.IterationRepository;
+import blogic.productline.iteration.domain.repository.IterationRequirementRepository;
 import cn.hutool.core.collection.CollectionUtil;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -94,9 +95,34 @@ public class Iteration extends ActiveRecord<Iteration, Long> {
         });
     }
 
+    public Mono<Void> saveRequirements(List<Long> requirementIds) {
+        Mono<List<IterationRequirement>> requirementsMono = findRequirements().collectList();
+        Mono<List<IterationRequirement>> addRequirementsMono = requirementsMono.map(its -> {
+            return CollectionUtil.subtractToList(requirementIds, its.stream().map(it -> it.getRequirementId()).collect(Collectors.toList()))
+                    .stream().map(it -> {
+                        IterationRequirement requirement = new IterationRequirement();
+                        requirement.setRequirementId(it);
+                        requirement.setIterationId(Iteration.this.id);
+                        return requirement;
+                    }).collect(Collectors.toList());
+        });
+        Mono<List<IterationRequirement>> deleteRequirementsMono = requirementsMono.map(its -> {
+            return its.stream().filter(it -> !requirementIds.contains(it.getRequirementId())).collect(Collectors.toList());
+        });
+        IterationRequirementRepository repository = SpringContext.getBean(IterationRequirementRepository.class);
+        return repository.deleteAll(deleteRequirementsMono.flatMapIterable(its -> its))
+                .then(repository.saveAll(addRequirementsMono.flatMapMany(its -> Flux.fromStream(its.stream()))).collectList())
+                .then(Mono.empty());
+    }
+
     public Flux<IterationMember> findMembers() {
         if(this.id == null) return Flux.empty();
         return SpringContext.getBean(IterationMemberRepository.class).findByIterationId(this.id);
+    }
+
+    public Flux<IterationRequirement> findRequirements() {
+        if(this.id == null) return Flux.empty();
+        return SpringContext.getBean(IterationRequirementRepository.class).findByIterationId(this.id);
     }
 
 }

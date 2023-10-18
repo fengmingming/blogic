@@ -49,6 +49,7 @@ public class IterationService {
         @NotNull
         private Long createUserId;
         private List<Long> userIds;
+        private List<Long> requirementIds;
     }
 
     @Transactional
@@ -63,12 +64,9 @@ public class IterationService {
         iteration.setCreateUserId(command.getCreateUserId());
         iteration.setCreateTime(LocalDateTime.now());
         return iterationRepository.save(iteration).flatMap(it -> {
-            return iterationMemberRepository.saveAll(command.getUserIds().stream().map(userId -> {
-                IterationMember member = new IterationMember();
-                member.setIterationId(it.getId());
-                member.setUserId(userId);
-                return member;
-            }).collect(Collectors.toList())).then(Mono.just(it.getId()));
+                return it.saveMembers(command.getUserIds())
+                        .then(it.saveRequirements(command.getRequirementIds()))
+                        .then(Mono.just(it.getId()));
         });
     }
 
@@ -90,6 +88,7 @@ public class IterationService {
         @NotNull
         @Size(min = 1)
         private List<Long> userIds;
+        private List<Long> requirementIds;
     }
 
     @Transactional
@@ -101,7 +100,7 @@ public class IterationService {
             it.setScheduledStartTime(command.getScheduledStartTime());
             it.setScheduledEndTime(command.getScheduledEndTime());
             it.setStatusEnum(command.getIterationStatus());
-            return it.save().then(it.saveMembers(command.getUserIds()));
+            return it.save().then(it.saveMembers(command.getUserIds())).then(it.saveRequirements(command.getRequirementIds()));
         });
     }
 
