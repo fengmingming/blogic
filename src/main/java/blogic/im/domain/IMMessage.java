@@ -1,6 +1,9 @@
 package blogic.im.domain;
 
+import blogic.core.context.SpringContext;
+import blogic.core.domain.ActiveRecord;
 import blogic.im.*;
+import blogic.im.domain.repository.IMMessageRepository;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import jakarta.validation.constraints.NotNull;
@@ -9,13 +12,14 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
 import java.time.LocalDateTime;
 
 @Setter
 @Getter
 @Table("im_message")
-public class IMMessage {
+public class IMMessage extends ActiveRecord<IMMessage, Long> {
 
     @Id
     private Long id;
@@ -62,4 +66,13 @@ public class IMMessage {
         this.content = JSONUtil.toJsonStr(content);
     }
 
+    @Override
+    protected ReactiveCrudRepository<IMMessage, Long> findRepository() {
+        return SpringContext.getBean(IMMessageRepository.class);
+    }
+
+    @Override
+    protected <S extends IMMessage> S selfS() {
+        return (S) this;
+    }
 }

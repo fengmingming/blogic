@@ -1,18 +1,22 @@
 package blogic.company.domain;
 
+import blogic.company.domain.repository.DepartmentRepository;
+import blogic.core.context.SpringContext;
+import blogic.core.domain.ActiveRecord;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
 import java.time.LocalDateTime;
 
 @Setter
 @Getter
 @Table("department")
-public class Department {
+public class Department extends ActiveRecord<Department, Long> {
 
     @Id
     private Long id;
@@ -30,5 +34,15 @@ public class Department {
     @Column("deleted")
     @NotNull
     private Boolean deleted = false;
+
+    @Override
+    protected ReactiveCrudRepository<Department, Long> findRepository() {
+        return SpringContext.getBean(DepartmentRepository.class);
+    }
+
+    @Override
+    protected <S extends Department> S selfS() {
+        return (S) this;
+    }
 
 }

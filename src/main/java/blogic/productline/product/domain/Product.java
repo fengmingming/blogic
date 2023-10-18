@@ -1,7 +1,9 @@
 package blogic.productline.product.domain;
 
 import blogic.core.context.SpringContext;
+import blogic.core.domain.ActiveRecord;
 import blogic.productline.product.domain.repository.ProductMemberRepository;
+import blogic.productline.product.domain.repository.ProductRepository;
 import com.querydsl.core.types.Predicate;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +13,7 @@ import org.hibernate.validator.constraints.Length;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
 
@@ -21,7 +24,7 @@ import java.util.stream.Collectors;
 @Setter
 @Getter
 @Table("product")
-public class Product {
+public class Product extends ActiveRecord<Product, Long> {
 
     @Id
     private Long id;
@@ -68,4 +71,13 @@ public class Product {
                 Flux.fromStream(its.stream().filter(it -> removedUserIds.contains(it.getUserId()))));
     }
 
+    @Override
+    protected ReactiveCrudRepository<Product, Long> findRepository() {
+        return SpringContext.getBean(ProductRepository.class);
+    }
+
+    @Override
+    protected <S extends Product> S selfS() {
+        return (S) this;
+    }
 }

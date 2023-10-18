@@ -2,7 +2,9 @@ package blogic.productline.iteration.domain;
 
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
+import blogic.productline.iteration.domain.repository.IterationMemberRepository;
 import blogic.productline.iteration.domain.repository.IterationRepository;
+import cn.hutool.core.collection.CollectionUtil;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,8 +13,12 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Setter
 @Getter
@@ -70,6 +76,27 @@ public class Iteration extends ActiveRecord<Iteration, Long> {
     @Override
     protected <S extends Iteration> S selfS() {
         return (S) this;
+    }
+
+    public Mono<Void> saveMembers(List<Long> userIds) {
+        Flux<IterationMember> memberFlux = findMembers();
+        return memberFlux.collectList().flatMap(its -> {
+            List<IterationMember> addMembers = CollectionUtil.subtractToList(userIds, its.stream().map(it -> it.getUserId()).collect(Collectors.toList()))
+                    .stream().map(it -> {
+                        IterationMember member = new IterationMember();
+                        member.setIterationId(Iteration.this.id);
+                        member.setUserId(it);
+                        return member;
+                    }).collect(Collectors.toList());
+            List<IterationMember> deleteMembers = its.stream().filter(it -> !userIds.contains(it.getUserId())).collect(Collectors.toList());
+            IterationMemberRepository repository = SpringContext.getBean(IterationMemberRepository.class);
+            return repository.saveAll(addMembers).then(repository.deleteAll(deleteMembers));
+        });
+    }
+
+    public Flux<IterationMember> findMembers() {
+        if(this.id == null) return Flux.empty();
+        return SpringContext.getBean(IterationMemberRepository.class).findByIterationId(this.id);
     }
 
 }

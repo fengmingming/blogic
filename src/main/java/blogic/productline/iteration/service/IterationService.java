@@ -6,8 +6,10 @@ import blogic.productline.iteration.domain.IterationMember;
 import blogic.productline.iteration.domain.IterationStatusEnum;
 import blogic.productline.iteration.domain.repository.IterationMemberRepository;
 import blogic.productline.iteration.domain.repository.IterationRepository;
+import cn.hutool.core.collection.CollectionUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -66,6 +69,39 @@ public class IterationService {
                 member.setUserId(userId);
                 return member;
             }).collect(Collectors.toList())).then(Mono.just(it.getId()));
+        });
+    }
+
+    @Setter
+    @Getter
+    public static class UpdateIterationCommand {
+        @NotNull
+        private Long iterationId;
+        @NotNull
+        @Length(max = 50)
+        private String versionCode;
+        @NotNull
+        @Length(max = 254)
+        private String name;
+        @NotNull
+        private IterationStatusEnum iterationStatus;
+        private LocalDateTime scheduledStartTime;
+        private LocalDateTime scheduledEndTime;
+        @NotNull
+        @Size(min = 1)
+        private List<Long> userIds;
+    }
+
+    @Transactional
+    public Mono<Void> updateIteration(@Valid UpdateIterationCommand command) {
+        Mono<Iteration> iterationMono = iterationRepository.findById(command.getIterationId());
+        return iterationMono.flatMap(it -> {
+            it.setVersionCode(command.getVersionCode());
+            it.setName(command.getName());
+            it.setScheduledStartTime(command.getScheduledStartTime());
+            it.setScheduledEndTime(command.getScheduledEndTime());
+            it.setStatusEnum(command.getIterationStatus());
+            return it.save().then(it.saveMembers(command.getUserIds()));
         });
     }
 

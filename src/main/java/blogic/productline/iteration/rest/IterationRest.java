@@ -1,10 +1,12 @@
 package blogic.productline.iteration.rest;
 
 import blogic.core.exception.ForbiddenAccessException;
+import blogic.core.json.DigitalizedEnumDeserializer;
 import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
+import blogic.productline.iteration.domain.IterationStatusEnum;
 import blogic.productline.iteration.domain.QIteration;
 import blogic.productline.iteration.domain.repository.IterationRepository;
 import blogic.productline.iteration.service.IterationService;
@@ -12,11 +14,13 @@ import blogic.productline.product.domain.QProduct;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.user.domain.QUser;
 import cn.hutool.core.collection.CollectionUtil;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -134,6 +138,52 @@ public class IterationRest {
                 return Mono.error(new ForbiddenAccessException());
             }
         }).flatMap(it -> Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class UpdateIterationReq {
+        @NotNull
+        @Length(max = 50)
+        private String versionCode;
+        @NotNull
+        @Length(max = 254)
+        private String name;
+        @NotNull
+        @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
+        private IterationStatusEnum iterationStatus;
+        private LocalDateTime scheduledStartTime;
+        private LocalDateTime scheduledEndTime;
+        @NotNull
+        @Size(min = 1)
+        private List<Long> userIds;
+    }
+
+    @PutMapping("/Companies/{companyId}/Products/{productId}/Iteration/{iterationId}")
+    public Mono<ResVo<?>> updateIteration(@PathVariable("companyId")Long companyId,
+                                          @PathVariable("productId")Long productId,
+                                          @PathVariable("iterationId")Long iterationId,
+                                          UserCurrentContext context,
+                                          @RequestBody @Valid UpdateIterationReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        return productRepository.verifyProductBelongToCompanyOrThrowException(productId, companyId)
+            .then(iterationRepository.verifyIterationBelongToProductOrThrowException(iterationId, productId))
+            .then(Mono.defer(() -> {
+                Mono<List<Long>> usersMono = productRepository.findById(productId).flatMapMany(p -> p.findMembers()).collectList().map(its -> its.stream().map(u -> u.getUserId()).collect(Collectors.toList()));
+                if(CollectionUtil.isNotEmpty(req.getUserIds())) {
+                    usersMono = usersMono.map(its -> new ArrayList<>(CollectionUtil.intersection(its, req.getUserIds())));
+                }
+                return usersMono.flatMap(userIds -> {
+                    IterationService.UpdateIterationCommand command = new IterationService.UpdateIterationCommand();
+                    command.setIterationId(iterationId);
+                    command.setName(req.getName());
+                    command.setVersionCode(req.getVersionCode());
+                    command.setScheduledStartTime(req.getScheduledStartTime());
+                    command.setScheduledEndTime(req.getScheduledEndTime());
+                    command.setUserIds(userIds);
+                    return iterationService.updateIteration(command);
+                });
+            })).then(Mono.just(ResVo.success()));
     }
 
 }

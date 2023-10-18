@@ -1,5 +1,6 @@
 package blogic.productline.product.domain.repository;
 
+import blogic.core.exception.ForbiddenAccessException;
 import blogic.productline.product.domain.Product;
 import blogic.productline.product.domain.QProduct;
 import com.infobip.spring.data.r2dbc.QuerydslR2dbcRepository;
@@ -14,6 +15,16 @@ public interface ProductRepository extends QuerydslR2dbcRepository<Product, Long
                 .from(QProduct.product)
                 .where(QProduct.product.id.eq(productId).and(QProduct.product.companyId.eq(companyId))))
                 .one().map(it -> it > 0);
+    }
+
+    default Mono<Void> verifyProductBelongToCompanyOrThrowException(Long productId, Long companyId) {
+        return verifyProductBelongToCompany(productId, companyId).flatMap(it -> {
+            if(it) {
+                return Mono.empty();
+            }else {
+                return Mono.error(new ForbiddenAccessException());
+            }
+        });
     }
 
 }
