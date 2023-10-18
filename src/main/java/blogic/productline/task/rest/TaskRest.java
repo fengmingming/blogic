@@ -24,7 +24,6 @@ public class TaskRest {
     @Setter
     @Getter
     public static class FindTasksReq extends Paging {
-        private
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/Tasks")
