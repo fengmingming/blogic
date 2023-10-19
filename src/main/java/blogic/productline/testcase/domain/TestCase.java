@@ -24,6 +24,8 @@ public class TestCase extends ActiveRecord<TestCase, Long> {
     private Long iterationId;
     @Column("requirement_id")
     private Long requirementId;
+    @Column("product_id")
+    private Long productId;
     @Column("title")
     private String title;
     @Column("priority")

@@ -159,14 +159,16 @@ create table blogic.iteration_requirement(
 
 create table blogic.task(
     id bigint not null auto_increment comment '任务id',
-    iteration_id bigint not null comment '迭代id',
+    iteration_id bigint null comment '迭代id',
+    product_id bigint not null comment '产品id',
     task_name varchar(254) not null comment '任务名称',
     task_desc text null comment '任务描述',
-    status int not null comment '任务状态 10未开始 20进行中 30已完成',
+    status int not null comment '任务状态 10未开始 20进行中 30已完成 40已取消',
     current_user_id bigint null comment '指派给',
     complete_user_id bigint null comment '完成用户id',
     start_time datetime null comment '任务开始时间',
     end_time datetime null comment '任务结束时间',
+    complete_time datetime null comment '任务完成时间',
     all_time int null comment '计划时间',
     consume_time int null comment '消耗时间',
     create_user_id bigint not null comment '创建用户id',
@@ -183,8 +185,9 @@ create table blogic.task(
 
 create table blogic.test_case(
     id bigint not null auto_increment comment '用例id',
-    iteration_id bigint not null comment '迭代id',
+    iteration_id bigint null comment '迭代id',
 	requirement_id bigint null comment '相关需求id',
+	product_id bigint not null comment '产品id',
     title varchar(254) not null comment '用例标题',
     priority int not null default 4 comment '1最高4最低',
     precondition varchar(1000) null comment '前置条件',
