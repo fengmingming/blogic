@@ -38,12 +38,14 @@ public class Task extends ActiveRecord<Task, Long> {
     private Long completeUserId;
     @Column("start_time")
     private LocalDateTime startTime;
-    @Column("end_time")
-    private LocalDateTime endTime;
+    @Column("priority")
+    private Integer priority;
+    @Column("final_time")
+    private LocalDateTime finalTime;
     @Column("complete_time")
     private LocalDateTime completeTime;
-    @Column("all_time")
-    private Integer allTime;
+    @Column("overall_time")
+    private Integer overallTime;
     @Column("consume_time")
     private Integer consumeTime;
     @Column("create_user_id")

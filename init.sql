@@ -167,9 +167,10 @@ create table blogic.task(
     current_user_id bigint null comment '指派给',
     complete_user_id bigint null comment '完成用户id',
     start_time datetime null comment '任务开始时间',
-    end_time datetime null comment '任务结束时间',
     complete_time datetime null comment '任务完成时间',
-    all_time int null comment '计划时间',
+    final_time datetime null comment '任务结束时间',
+    priority int not null default 4 comment '1最高4最低',
+    overall_time int null comment '计划时间',
     consume_time int null comment '消耗时间',
     create_user_id bigint not null comment '创建用户id',
     create_time datetime not null comment '创建时间',
@@ -258,5 +259,16 @@ create table blogic.change_record (
     primary key (id),
     key primary_key_type (primary_key, key_type)
 )engine=INNODB default charset=utf8mb4 comment='变更记录';
+
+create table blogic.dict (
+    id bigint not null auto_increment comment '主键',
+    dict_type varchar(100) not null comment '标识类型',
+    code int not null comment '编码',
+    code_desc varchar(50) not null comment '描述',
+    locale varchar(10) not null default 'zh-CN' comment '语言',
+    create_time datetime not null comment '创建时间',
+    primary key (id),
+	unique key dict_type_code_locale (dict_type, code, locale)
+)engine=INNODB default charset=utf8mb4 comment='字典表';
 
 
