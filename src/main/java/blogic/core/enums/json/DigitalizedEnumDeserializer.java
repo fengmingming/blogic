@@ -1,4 +1,4 @@
-package blogic.core.json;
+package blogic.core.enums.json;
 
 import blogic.core.enums.IDigitalizedEnum;
 import blogic.core.exception.IllegalEnumValueException;

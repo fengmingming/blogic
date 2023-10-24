@@ -1,7 +1,7 @@
 package blogic.productline.iteration.rest;
 
 import blogic.core.exception.ForbiddenAccessException;
-import blogic.core.json.DigitalizedEnumDeserializer;
+import blogic.core.enums.json.DigitalizedEnumDeserializer;
 import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;

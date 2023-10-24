@@ -2,12 +2,12 @@ package blogic.productline.task.rest;
 
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.exception.IllegalArgumentException;
-import blogic.core.json.DigitalizedEnumDeserializer;
+import blogic.core.enums.json.DigitalizedEnumDeserializer;
 import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
-import blogic.core.service.DTOLogicConsistencyVerifier;
+import blogic.core.validation.DTOLogicConsistencyVerifier;
 import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.task.domain.QTask;
 import blogic.productline.task.domain.TaskStatusEnum;
@@ -28,7 +28,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
@@ -46,8 +45,6 @@ public class TaskRest {
     private TaskService taskService;
     @Autowired
     private ProductLineVerifier productLineVerifier;
-
-    @Initialized
 
     @Setter
     @Getter

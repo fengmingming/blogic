@@ -1,4 +1,4 @@
-package blogic.core.service;
+package blogic.core.validation;
 
 import blogic.core.exception.IllegalArgumentException;
 
