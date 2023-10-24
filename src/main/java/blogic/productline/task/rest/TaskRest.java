@@ -1,12 +1,14 @@
 package blogic.productline.task.rest;
 
-import blogic.core.domain.VerifyLogicConsistency;
+import blogic.core.exception.ForbiddenAccessException;
+import blogic.core.exception.IllegalArgumentException;
+import blogic.core.json.DigitalizedEnumDeserializer;
 import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
-import blogic.productline.product.domain.repository.ProductMemberRepository;
-import blogic.productline.product.domain.repository.ProductRepository;
+import blogic.core.service.ArgumentLogicConsistencyVerifier;
+import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.task.domain.QTask;
 import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
@@ -14,6 +16,7 @@ import blogic.productline.task.service.TaskService;
 import blogic.user.domain.QUser;
 import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
@@ -42,9 +45,7 @@ public class TaskRest {
     @Autowired
     private TaskService taskService;
     @Autowired
-    private ProductRepository productRepository;
-    @Autowired
-    private ProductMemberRepository productMemberRepository;
+    private ProductLineVerifier productLineVerifier;
 
     @Initialized
 
@@ -92,7 +93,7 @@ public class TaskRest {
     public Mono<ResVo<?>> findTasks(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
                                     UserCurrentContext context, FindTasksReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
-        Mono<Void> verifyProductIdMono = productRepository.verifyProductBelongToCompanyOrThrowException(productId, companyId);
+        Mono<Void> verifyProductIdMono = productLineVerifier.verifyProductOrThrowException(companyId, productId);
         Mono<ResVo<?>> resVoMono = taskRepository.query(q -> {
             QTask qTask = QTask.task;
             QUser currentQUser = QUser.user;
@@ -130,6 +131,7 @@ public class TaskRest {
     @Setter
     @Getter
     public static class CreateTaskReq {
+        private Long requirementId;
         private Long iterationId;
         @NotBlank
         @Length(max = 254)
@@ -147,17 +149,14 @@ public class TaskRest {
 
     @PostMapping("/Companies/{companyId}/Products/{productId}/Tasks")
     public Mono<ResVo<?>> createTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
-                                     TokenInfo token, UserCurrentContext context,
-                                     @RequestBody @Valid CreateTaskReq req) {
+                                     TokenInfo token, UserCurrentContext context, @RequestBody @Valid CreateTaskReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
-        Mono<Void> verifyMono = productRepository.verifyProductBelongToCompanyOrThrowException(productId, companyId);
-        if(req.getCurrentUserId() != null) {
-            verifyMono = verifyMono.then(productMemberRepository.verifyUserBelongToProductOrThrowException(req.getCurrentUserId(), productId));
-        }
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, req.getRequirementId(), req.getIterationId(), null);
         return verifyMono.then(Mono.fromSupplier(() -> {
             TaskService.CreateTaskCommand command = new TaskService.CreateTaskCommand();
             command.setProductId(productId);
             command.setIterationId(req.getIterationId());
+            command.setRequirementId(req.getRequirementId());
             command.setTaskName(req.getTaskName());
             command.setTaskDesc(req.getTaskDesc());
             command.setPriority(req.getPriority());
@@ -172,7 +171,10 @@ public class TaskRest {
 
     @Setter
     @Getter
-    public static class UpdateTaskReq implements VerifyLogicConsistency {
+    public static class UpdateTaskReq implements ArgumentLogicConsistencyVerifier {
+        @NotNull
+        private Long taskId;
+        private Long requirementId;
         private Long iterationId;
         @NotBlank
         @Length(max = 254)
@@ -180,6 +182,7 @@ public class TaskRest {
         private String taskDesc;
         @NotNull
         private Long currentUserId;
+        @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
         @NotNull
         private TaskStatusEnum status;
         @NotNull
@@ -187,14 +190,26 @@ public class TaskRest {
         @NotNull
         @Min(0)
         private Integer overallTime;
+        @NotNull
         @Min(0)
         private Integer consumeTime;
+
         private LocalDateTime startTime;
         private LocalDateTime completeTime;
-        private Long completeUserId;
 
         @Override
-        public void afterPropertiesSet() {
+        public void verifyArguments() throws IllegalArgumentException{
+            if(status == TaskStatusEnum.InProgress) {
+                if(startTime == null) {
+                    throw new IllegalArgumentException("startTime is null");
+                }
+                this.completeTime = null;
+            }
+            if(status == TaskStatusEnum.Completed) {
+                if (startTime == null || completeTime == null) {
+                    throw new IllegalArgumentException("startTime or completeTime is null");
+                }
+            }
 
         }
 
@@ -204,13 +219,36 @@ public class TaskRest {
     public Mono<ResVo<?>> updateTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
                                      @PathVariable("taskId")Long taskId, TokenInfo token, UserCurrentContext context,
                                      @RequestBody @Valid UpdateTaskReq req) {
-        req.afterPropertiesSet();
+        req.verifyArguments();
         context.equalsCompanyIdOrThrowException(companyId);
-        Mono<Void> verifyMono = productRepository.verifyProductBelongToCompanyOrThrowException(productId, companyId);
-        if(req.getCurrentUserId() != null) {
-            verifyMono = verifyMono.then(productMemberRepository.verifyUserBelongToProductOrThrowException(req.getCurrentUserId(), productId));
-        }
-        return null;
+        Mono<Boolean> verifyMono = productLineVerifier.verifyTask(companyId, productId, req.getRequirementId(), req.getIterationId(), req.getTaskId());
+        return verifyMono.flatMap(it -> {
+            if(it) {
+                TaskService.UpdateTaskCommand command = new TaskService.UpdateTaskCommand();
+                command.setTaskId(req.getTaskId());
+                command.setRequirementId(req.getRequirementId());
+                command.setIterationId(req.getIterationId());
+                command.setTaskName(req.getTaskName());
+                command.setTaskDesc(req.getTaskDesc());
+                command.setCurrentUserId(req.getCurrentUserId());
+                command.setStatus(req.getStatus());
+                command.setStartTime(req.getStartTime());
+                command.setCompleteTime(req.getCompleteTime());
+                if(req.getStatus() == TaskStatusEnum.Completed) {
+                    command.setCompleteUserId(token.getUserId());
+                    command.setFinalTime(LocalDateTime.now());
+                }
+                if(req.getStatus() == TaskStatusEnum.Canceled) {
+                    command.setFinalTime(LocalDateTime.now());
+                }
+                command.setPriority(req.getPriority());
+                command.setOverallTime(req.getOverallTime());
+                command.setConsumeTime(req.getConsumeTime());
+                return taskService.updateTask(command).then(Mono.just(ResVo.success()));
+            }else {
+                return Mono.error(new ForbiddenAccessException());
+            }
+        });
     }
 
 }

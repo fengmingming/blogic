@@ -22,6 +22,8 @@ public class Task extends ActiveRecord<Task, Long> {
 
     @Id
     private Long id;
+    @Column("requirement_id")
+    private Long requirementId;
     @Column("iteration_id")
     private Long iterationId;
     @Column("product_id")

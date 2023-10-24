@@ -159,6 +159,7 @@ create table blogic.iteration_requirement(
 
 create table blogic.task(
     id bigint not null auto_increment comment '任务id',
+    requirement_id bigint null comment '需求id',
     iteration_id bigint null comment '迭代id',
     product_id bigint not null comment '产品id',
     task_name varchar(254) not null comment '任务名称',

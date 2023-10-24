@@ -1,6 +1,5 @@
 package blogic.productline.task.service;
 
-import blogic.core.domain.VerifyLogicConsistency;
 import blogic.productline.task.domain.Task;
 import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
@@ -12,7 +11,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -30,6 +28,7 @@ public class TaskService {
     @Setter
     @Getter
     public static class CreateTaskCommand {
+        private Long requirementId;
         private Long iterationId;
         @NotNull
         private Long productId;
@@ -52,6 +51,7 @@ public class TaskService {
         Task task = new Task();
         task.setProductId(command.getProductId());
         task.setIterationId(command.getIterationId());
+        task.setRequirementId(command.getRequirementId());
         task.setTaskName(command.getTaskName());
         task.setTaskDesc(command.getTaskDesc());
         task.setStatusEnum(TaskStatusEnum.NotStarted);
@@ -65,9 +65,10 @@ public class TaskService {
 
     @Setter
     @Getter
-    public static class UpdateTaskCommand implements VerifyLogicConsistency {
+    public static class UpdateTaskCommand {
         @NotNull
         private Long taskId;
+        private Long requirementId;
         private Long iterationId;
         @NotBlank
         @Length(max = 254)
@@ -85,18 +86,13 @@ public class TaskService {
         @Min(0)
         private Integer consumeTime;
         private LocalDateTime startTime;
+        private LocalDateTime finalTime;
         private LocalDateTime completeTime;
         private Long completeUserId;
-
-        @Override
-        public void afterPropertiesSet() {
-
-        }
     }
 
     @Transactional
     public Mono<Task> updateTask(@NotNull @Valid UpdateTaskCommand command) {
-        command.afterPropertiesSet();
         return taskRepository.findById(command.getTaskId()).doOnNext(task -> {
             task.setTaskName(command.getTaskName());
             task.setTaskDesc(command.getTaskDesc());
@@ -121,6 +117,7 @@ public class TaskService {
             task.setCurrentUserId(command.getCurrentUserId());
             task.setOverallTime(command.getOverallTime());
             task.setConsumeTime(command.getConsumeTime());
+            task.setRequirementId(command.getRequirementId());
             task.setIterationId(command.getIterationId());
             task.setPriority(command.getPriority());
         }).flatMap(task -> taskRepository.save(task));

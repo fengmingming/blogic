@@ -10,11 +10,15 @@ import reactor.core.publisher.Mono;
 @Repository
 public interface IterationRepository extends QuerydslR2dbcRepository<Iteration, Long> {
 
-    default Mono<Void> verifyIterationBelongToProductOrThrowException(Long iterationId, Long productId) {
+    default Mono<Boolean> verifyIterationBelongToProduct(Long iterationId, Long productId) {
         return query(q -> q.select(QIteration.iteration.id.count())
-            .where(QIteration.iteration.id.eq(iterationId).and(QIteration.iteration.productId.eq(productId)))
-        ).one().flatMap(it -> {
-           if(it > 0) {
+                .where(QIteration.iteration.id.eq(iterationId).and(QIteration.iteration.productId.eq(productId))))
+                .one().map(it -> it > 0);
+    }
+
+    default Mono<Void> verifyIterationBelongToProductOrThrowException(Long iterationId, Long productId) {
+        return verifyIterationBelongToProduct(iterationId, productId).flatMap(it -> {
+           if(it) {
                return Mono.empty();
            }else {
                return Mono.error(new ForbiddenAccessException());
