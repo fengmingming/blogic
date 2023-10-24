@@ -7,7 +7,7 @@ import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
-import blogic.core.service.ArgumentLogicConsistencyVerifier;
+import blogic.core.service.DTOLogicConsistencyVerifier;
 import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.task.domain.QTask;
 import blogic.productline.task.domain.TaskStatusEnum;
@@ -171,7 +171,7 @@ public class TaskRest {
 
     @Setter
     @Getter
-    public static class UpdateTaskReq implements ArgumentLogicConsistencyVerifier {
+    public static class UpdateTaskReq implements DTOLogicConsistencyVerifier {
         @NotNull
         private Long taskId;
         private Long requirementId;
@@ -198,7 +198,7 @@ public class TaskRest {
         private LocalDateTime completeTime;
 
         @Override
-        public void verifyArguments() throws IllegalArgumentException{
+        public void verifyLogicConsistency() throws IllegalArgumentException{
             if(status == TaskStatusEnum.InProgress) {
                 if(startTime == null) {
                     throw new IllegalArgumentException("startTime is null");
@@ -219,7 +219,6 @@ public class TaskRest {
     public Mono<ResVo<?>> updateTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
                                      @PathVariable("taskId")Long taskId, TokenInfo token, UserCurrentContext context,
                                      @RequestBody @Valid UpdateTaskReq req) {
-        req.verifyArguments();
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Boolean> verifyMono = productLineVerifier.verifyTask(companyId, productId, req.getRequirementId(), req.getIterationId(), req.getTaskId());
         return verifyMono.flatMap(it -> {
