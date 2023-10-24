@@ -1,5 +1,7 @@
 package blogic.productline.task.service;
 
+import blogic.core.exception.IllegalArgumentException;
+import blogic.core.service.ArgumentLogicConsistencyVerifier;
 import blogic.productline.task.domain.Task;
 import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
@@ -65,7 +67,7 @@ public class TaskService {
 
     @Setter
     @Getter
-    public static class UpdateTaskCommand {
+    public static class UpdateTaskCommand implements ArgumentLogicConsistencyVerifier {
         @NotNull
         private Long taskId;
         private Long requirementId;
@@ -89,6 +91,12 @@ public class TaskService {
         private LocalDateTime finalTime;
         private LocalDateTime completeTime;
         private Long completeUserId;
+
+        @Override
+        public void verifyArguments() throws IllegalArgumentException {
+
+        }
+
     }
 
     @Transactional
