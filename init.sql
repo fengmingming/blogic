@@ -19,7 +19,6 @@ create table blogic.company (
     primary key (id)
 )engine=innodb default charset=utf8mb4 comment='公司';
 
-drop table blogic.user_company_role;
 create table blogic.user_company_role (
     id bigint not null auto_increment comment 'id',
     user_id bigint not null comment '用户id',
