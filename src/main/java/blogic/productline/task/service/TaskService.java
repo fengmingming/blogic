@@ -97,7 +97,41 @@ public class TaskService {
 
         @Override
         public void verifyLogicConsistency() throws IllegalArgumentException {
-
+            if(status == TaskStatusEnum.NotStarted) {
+                this.startTime = null;
+                this.finalTime = null;
+                this.completeTime = null;
+                this.completeUserId = null;
+            }
+            if(status == TaskStatusEnum.InProgress) {
+                if(startTime == null) {
+                    throw new IllegalArgumentException("startTime is null");
+                }
+                this.finalTime = null;
+                this.completeTime = null;
+                this.completeUserId = null;
+            }
+            if(status == TaskStatusEnum.Completed) {
+                if(startTime == null) {
+                    throw new IllegalArgumentException("startTime is null");
+                }
+                if(completeTime == null) {
+                    throw new IllegalArgumentException("completeTime is null");
+                }
+                if (completeUserId == null) {
+                    throw new IllegalArgumentException("completeUserId is null");
+                }
+            }
+            if(status == TaskStatusEnum.Completed) {
+                if(startTime == null) {
+                    throw new IllegalArgumentException("startTime is null");
+                }
+                if(finalTime == null) {
+                    throw new IllegalArgumentException("finalTime is null");
+                }
+                this.completeTime = null;
+                this.completeUserId = null;
+            }
         }
 
     }
@@ -108,23 +142,10 @@ public class TaskService {
             task.setTaskName(command.getTaskName());
             task.setTaskDesc(command.getTaskDesc());
             task.setStatusEnum(command.getStatus());
-            if(command.getStatus() == TaskStatusEnum.InProgress) {
-                task.setStartTime(command.getStartTime());
-                task.setFinalTime(null);
-                task.setCompleteTime(null);
-                task.setCompleteUserId(null);
-            }
-            if(command.getStatus() == TaskStatusEnum.Canceled) {
-                task.setFinalTime(LocalDateTime.now());
-                task.setCompleteTime(null);
-                task.setCompleteUserId(null);
-            }
-            if(command.getStatus() == TaskStatusEnum.Completed) {
-                task.setStartTime(command.getStartTime());
-                task.setCompleteTime(command.getCompleteTime());
-                task.setFinalTime(LocalDateTime.now());
-                task.setCompleteUserId(command.getCompleteUserId());
-            }
+            task.setStartTime(command.getStartTime());
+            task.setFinalTime(LocalDateTime.now());
+            task.setCompleteTime(command.getCompleteTime());
+            task.setCompleteUserId(command.getCompleteUserId());
             task.setCurrentUserId(command.getCurrentUserId());
             task.setOverallTime(command.getOverallTime());
             task.setConsumeTime(command.getConsumeTime());

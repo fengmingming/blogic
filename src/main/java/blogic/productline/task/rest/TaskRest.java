@@ -1,8 +1,8 @@
 package blogic.productline.task.rest;
 
+import blogic.core.enums.json.DigitalizedEnumDeserializer;
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.exception.IllegalArgumentException;
-import blogic.core.enums.json.DigitalizedEnumDeserializer;
 import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
@@ -30,7 +30,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
-import org.hibernate.validator.constraints.time.DurationMax;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.web.bind.annotation.*;
@@ -170,9 +169,8 @@ public class TaskRest {
 
     @Setter
     @Getter
+    @DTOLogicValid
     public static class UpdateTaskReq implements DTOLogicConsistencyVerifier {
-        @NotNull
-        private Long taskId;
         private Long requirementId;
         private Long iterationId;
         @NotBlank
@@ -192,8 +190,6 @@ public class TaskRest {
         @NotNull
         @Min(0)
         private Integer consumeTime;
-
-        @DurationMax
         private LocalDateTime startTime;
         private LocalDateTime completeTime;
 
@@ -210,7 +206,6 @@ public class TaskRest {
                     throw new IllegalArgumentException("startTime or completeTime is null");
                 }
             }
-
         }
 
     }
@@ -220,11 +215,11 @@ public class TaskRest {
                                      @PathVariable("taskId")Long taskId, TokenInfo token, UserCurrentContext context,
                                      @RequestBody @Valid UpdateTaskReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
-        Mono<Boolean> verifyMono = productLineVerifier.verifyTask(companyId, productId, req.getRequirementId(), req.getIterationId(), req.getTaskId());
+        Mono<Boolean> verifyMono = productLineVerifier.verifyTask(companyId, productId, req.getRequirementId(), req.getIterationId(), taskId);
         return verifyMono.flatMap(it -> {
             if(it) {
                 TaskService.UpdateTaskCommand command = new TaskService.UpdateTaskCommand();
-                command.setTaskId(req.getTaskId());
+                command.setTaskId(taskId);
                 command.setRequirementId(req.getRequirementId());
                 command.setIterationId(req.getIterationId());
                 command.setTaskName(req.getTaskName());
@@ -248,21 +243,6 @@ public class TaskRest {
                 return Mono.error(new ForbiddenAccessException());
             }
         });
-    }
-
-    @DTOLogicValid
-    public static class TestValid implements DTOLogicConsistencyVerifier{
-
-        @Override
-        public void verifyLogicConsistency() throws IllegalArgumentException {
-            throw new IllegalArgumentException("test valid");
-        }
-
-    }
-
-    @PutMapping("/testValid")
-    public Mono<Void> testValid(@RequestBody @Valid TestValid valid) {
-        return Mono.empty();
     }
 
 }
