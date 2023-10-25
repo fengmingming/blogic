@@ -10,16 +10,18 @@ import blogic.productline.testcase.domain.TestCaseStatusEnum;
 import blogic.productline.testcase.domain.TestCaseStep;
 import blogic.productline.testcase.domain.repository.TestCaseRepository;
 import blogic.productline.testcase.domain.repository.TestCaseStepRepository;
+import blogic.productline.testcase.service.TestCaseService;
 import blogic.user.domain.QUser;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -37,6 +39,8 @@ public class TestCaseRest {
     private TestCaseStepRepository stepRepository;
     @Autowired
     private ProductLineVerifier productLineVerifier;
+    @Autowired
+    private TestCaseService testCaseService;
 
     @Setter
     @Getter
@@ -112,6 +116,29 @@ public class TestCaseRest {
                     return Mono.just(ResVo.success(its));
                 });
         }));
+    }
+
+    @Setter
+    @Getter
+    public static class CreateTestCaseReq {
+        private Long iterationId;
+        private Long requirementId;
+        private String title;
+        private Integer priority;
+        private String precondition;
+        private Long ownerUserId;
+        private Boolean smoke;
+        @NotNull
+        @Size(min = 1, max = 100)
+        private List<TestCaseStepDto> steps;
+    }
+
+    @PostMapping("/Companies/{companyId}/Products/{productId}/TestCases")
+    public Mono<ResVo<?>> createTestCase(@PathVariable("companyId") Long companyId, @PathVariable("productId") Long productId,
+                                         TokenInfo tokenInfo, UserCurrentContext context, @RequestBody @Valid CreateTestCaseReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, req.getRequirementId(), req.getIterationId(), null);
+        return null;
     }
 
 

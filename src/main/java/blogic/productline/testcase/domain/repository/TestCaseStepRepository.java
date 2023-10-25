@@ -10,4 +10,6 @@ public interface TestCaseStepRepository extends QuerydslR2dbcRepository<TestCase
 
     public Flux<TestCaseStep> findAllByTestCaseId(Iterable<Long> its);
 
+    public Flux<TestCaseStep> findAllByTestCaseId(Long testCaseId);
+
 }
