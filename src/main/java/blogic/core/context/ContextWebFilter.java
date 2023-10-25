@@ -10,9 +10,15 @@ import java.util.Locale;
 
 public class ContextWebFilter implements WebFilter {
 
+    public static final String ATTRIBUTE_KEY_LOCALE = ContextWebFilter.class.getName() + ".LOCALE";
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        Locale locale = exchange.getRequest().getHeaders().getAcceptLanguageAsLocales().stream().findFirst().orElseGet(() -> Locale.getDefault());
+        Locale locale = exchange.getLocaleContext().getLocale();
+        if(locale == null) {
+            locale = Locale.getDefault();
+        }
+        exchange.getAttributes().put(ATTRIBUTE_KEY_LOCALE, locale);
         return chain.filter(exchange).contextWrite(Context.of(Locale.class, locale));
     }
 

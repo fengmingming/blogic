@@ -1,5 +1,6 @@
 package blogic.core.rest;
 
+import blogic.core.context.ContextWebFilter;
 import blogic.core.exception.CodedException;
 import jakarta.validation.ValidationException;
 import lombok.Getter;
@@ -40,11 +41,9 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
         }else {
             result.put("code", superResult.get("status"));
         }
-        List<Locale> locales = request.headers().acceptLanguage().stream()
-                .map(range -> Locale.forLanguageTag(range.getRange()))
-                .filter(locale -> StringUtils.hasText(locale.getDisplayName())).toList();
+        Locale locale = (Locale) request.attribute(ContextWebFilter.ATTRIBUTE_KEY_LOCALE).orElseGet(() -> Locale.getDefault());
         result.put("status", 500);
-        result.put("codeDesc", doGetMessage(e, locales.size() > 0? locales.get(0): Locale.getDefault()));
+        result.put("codeDesc", doGetMessage(e, locale));
         return result;
     }
 

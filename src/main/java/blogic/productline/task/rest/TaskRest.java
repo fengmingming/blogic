@@ -8,6 +8,7 @@ import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
 import blogic.core.validation.DTOLogicConsistencyVerifier;
+import blogic.core.validation.DTOLogicValid;
 import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.task.domain.QTask;
 import blogic.productline.task.domain.TaskStatusEnum;
@@ -29,6 +30,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
+import org.hibernate.validator.constraints.time.DurationMax;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.web.bind.annotation.*;
@@ -191,6 +193,7 @@ public class TaskRest {
         @Min(0)
         private Integer consumeTime;
 
+        @DurationMax
         private LocalDateTime startTime;
         private LocalDateTime completeTime;
 
@@ -245,6 +248,21 @@ public class TaskRest {
                 return Mono.error(new ForbiddenAccessException());
             }
         });
+    }
+
+    @DTOLogicValid
+    public static class TestValid implements DTOLogicConsistencyVerifier{
+
+        @Override
+        public void verifyLogicConsistency() throws IllegalArgumentException {
+            throw new IllegalArgumentException("test valid");
+        }
+
+    }
+
+    @PutMapping("/testValid")
+    public Mono<Void> testValid(@RequestBody @Valid TestValid valid) {
+        return Mono.empty();
     }
 
 }
