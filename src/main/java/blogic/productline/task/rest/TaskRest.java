@@ -199,10 +199,14 @@ public class TaskRest {
                 if(startTime == null) {
                     throw new IllegalArgumentException("startTime is null");
                 }
-                this.completeTime = null;
             }
             if(status == TaskStatusEnum.Completed) {
                 if (startTime == null || completeTime == null) {
+                    throw new IllegalArgumentException("startTime or completeTime is null");
+                }
+            }
+            if(status == TaskStatusEnum.Canceled) {
+                if (startTime == null) {
                     throw new IllegalArgumentException("startTime or completeTime is null");
                 }
             }

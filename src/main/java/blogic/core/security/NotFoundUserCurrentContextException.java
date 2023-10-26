@@ -1,12 +1,11 @@
 package blogic.core.security;
 
-import blogic.core.exception.CodedException;
+import blogic.core.exception.AbstractCodedException;
 
-public class NotFoundUserCurrentContextException extends RuntimeException implements CodedException {
+public class NotFoundUserCurrentContextException extends AbstractCodedException {
 
-    @Override
-    public int getCode() {
-        return 1003;
+    public NotFoundUserCurrentContextException() {
+        super(1003);
     }
 
 }

@@ -1,10 +1,9 @@
 package blogic.core.exception;
 
-public class DataNotFoundException extends RuntimeException implements CodedException{
+public class DataNotFoundException extends AbstractCodedException {
 
-    @Override
-    public int getCode() {
-        return 404;
+    public DataNotFoundException() {
+        super(404);
     }
 
 }

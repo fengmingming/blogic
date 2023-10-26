@@ -43,4 +43,8 @@ public class SpringContext implements ApplicationContextAware {
         return SpringContext.INSTANCE().getMessage(String.valueOf(code), args, locale);
     }
 
+    public static String getMessage(int code, Locale locale, String defaultMessage, Object ... args) {
+        return SpringContext.INSTANCE().getMessage(String.valueOf(code), args, defaultMessage, locale);
+    }
+
 }

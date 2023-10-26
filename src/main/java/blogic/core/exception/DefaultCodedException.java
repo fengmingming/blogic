@@ -5,27 +5,14 @@ import lombok.Setter;
 
 @Setter
 @Getter
-public class DefaultCodedException extends RuntimeException implements CodedException{
+public final class DefaultCodedException extends AbstractCodedException {
 
-    private int code;
-    private Object[] templateArgs = new Object[]{};
-
-    @Override
-    public int getCode() {
-        return code;
-    }
-
-    @Override
-    public Object[] getTemplateArgs() {
-        return templateArgs;
+    public DefaultCodedException(int code, Object ... args) {
+        super(code, args);
     }
 
     public static DefaultCodedException build(int code, Object ... args) {
-        DefaultCodedException codedException = new DefaultCodedException();
-        codedException.setCode(code);
-        if(args != null) {
-            codedException.setTemplateArgs(args);
-        }
+        DefaultCodedException codedException = new DefaultCodedException(code, args);
         return codedException;
     }
 

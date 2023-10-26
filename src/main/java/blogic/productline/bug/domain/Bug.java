@@ -2,6 +2,8 @@ package blogic.productline.bug.domain;
 
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
+import blogic.core.domain.LogicConsistencyException;
+import blogic.core.domain.LogicConsistencyProcessor;
 import blogic.productline.bug.domain.repository.BugRepository;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -16,7 +18,7 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Table("bug")
-public class Bug extends ActiveRecord<Bug, Long> {
+public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProcessor {
 
     @Id
     private Long id;
@@ -74,6 +76,22 @@ public class Bug extends ActiveRecord<Bug, Long> {
     @Override
     protected <S extends Bug> S selfS() {
         return (S) this;
+    }
+
+    @Override
+    public void verifyLogicConsistency() throws LogicConsistencyException {
+        
+    }
+
+    public void setStatusEnum(BugStatusEnum status) {
+        if(status != null) {
+            setStatus(status.getCode());
+        }
+    }
+
+    public BugStatusEnum getStatusEnum() {
+        if(getStatus() == null) return null;
+        return BugStatusEnum.findByCode(getStatus());
     }
 
 }

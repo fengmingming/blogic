@@ -1,21 +1,11 @@
 package blogic.core.domain;
 
-import blogic.core.exception.CodedException;
+import blogic.core.exception.AbstractCodedException;
 
-public class LogicConsistencyException extends RuntimeException implements CodedException {
+public class LogicConsistencyException extends AbstractCodedException {
 
     public LogicConsistencyException(String message) {
-        super(message);
-    }
-
-    @Override
-    public int getCode() {
-        return 1007;
-    }
-
-    @Override
-    public Object[] getTemplateArgs() {
-        return new Object[]{getMessage()};
+        super(1007, message);
     }
 
 }

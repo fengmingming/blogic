@@ -2,6 +2,8 @@ package blogic.productline.task.domain;
 
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
+import blogic.core.domain.LogicConsistencyException;
+import blogic.core.domain.LogicConsistencyProcessor;
 import blogic.core.enums.IDigitalizedEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
 import lombok.Getter;
@@ -18,7 +20,7 @@ import java.util.stream.Collectors;
 @Setter
 @Getter
 @Table("task")
-public class Task extends ActiveRecord<Task, Long> {
+public class Task extends ActiveRecord<Task, Long> implements LogicConsistencyProcessor {
 
     @Id
     private Long id;
@@ -76,6 +78,46 @@ public class Task extends ActiveRecord<Task, Long> {
     public void setStatusEnum(TaskStatusEnum taskStatus) {
         if(taskStatus == null) return;
         this.setStatus(taskStatus.getCode());
+    }
+
+    @Override
+    public void verifyLogicConsistency() throws LogicConsistencyException {
+        TaskStatusEnum status = getTaskStatusEnum();
+        if(status == TaskStatusEnum.NotStarted) {
+            this.startTime = null;
+            this.finalTime = null;
+            this.completeTime = null;
+            this.completeUserId = null;
+        }
+        if(status == TaskStatusEnum.InProgress) {
+            if(startTime == null) {
+                throw new LogicConsistencyException("Task.startTime is null");
+            }
+            this.finalTime = null;
+            this.completeTime = null;
+            this.completeUserId = null;
+        }
+        if(status == TaskStatusEnum.Completed) {
+            if (startTime == null) {
+                throw new LogicConsistencyException("startTime is null");
+            }
+            if (finalTime == null) {
+                throw new LogicConsistencyException("finalTime is null");
+            }
+            if (completeTime == null) {
+                throw new LogicConsistencyException("completeTime is null");
+            }
+            if (completeUserId == null) {
+                throw new LogicConsistencyException("completeUserId is null");
+            }
+        }
+        if(status == TaskStatusEnum.Canceled) {
+            if (finalTime == null) {
+                throw new LogicConsistencyException("finalTime is null");
+            }
+            this.completeTime = null;
+            this.completeUserId = null;
+        }
     }
 
 }

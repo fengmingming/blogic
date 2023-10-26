@@ -1,12 +1,11 @@
 package blogic.core.security;
 
-import blogic.core.exception.CodedException;
+import blogic.core.exception.AbstractCodedException;
 
-public class NotSelectUserCurrentContextException extends RuntimeException implements CodedException {
+public class NotSelectUserCurrentContextException extends AbstractCodedException {
 
-    @Override
-    public int getCode() {
-        return 1006;
+    public NotSelectUserCurrentContextException() {
+        super(1006);
     }
 
 }

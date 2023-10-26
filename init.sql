@@ -192,6 +192,7 @@ create table blogic.test_case(
     title varchar(254) not null comment '用例标题',
     priority int not null default 4 comment '1最高4最低',
     precondition varchar(1000) null comment '前置条件',
+    steps text null comment '步骤',
     owner_user_id bigint null comment '用例负责人',
     smoke tinyint not null default 0 comment '0否1是',
     status int not null default 10 comment '10未开始 20测试中 30被阻塞 40已完成',

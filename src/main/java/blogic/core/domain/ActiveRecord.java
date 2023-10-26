@@ -1,5 +1,6 @@
 package blogic.core.domain;
 
+import blogic.core.exception.LogicDeleteNotSupportedException;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Mono;
 
@@ -15,6 +16,10 @@ public abstract class ActiveRecord<T, ID> {
 
     public Mono<Void> delete() {
         return findRepository().delete(selfS());
+    }
+
+    public Mono<Void> deleteLogic() {
+        return Mono.error(new LogicDeleteNotSupportedException(this.getClass()));
     }
 
 }

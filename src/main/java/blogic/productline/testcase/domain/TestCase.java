@@ -2,6 +2,8 @@ package blogic.productline.testcase.domain;
 
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
+import blogic.core.domain.LogicConsistencyException;
+import blogic.core.domain.LogicConsistencyProcessor;
 import blogic.productline.testcase.domain.repository.TestCaseRepository;
 import cn.hutool.core.lang.TypeReference;
 import cn.hutool.json.JSONUtil;
@@ -13,8 +15,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -24,7 +24,7 @@ import java.util.List;
 @Setter
 @Getter
 @Table("test_case")
-public class TestCase extends ActiveRecord<TestCase, Long> {
+public class TestCase extends ActiveRecord<TestCase, Long> implements LogicConsistencyProcessor {
 
     @Id
     private Long id;
@@ -81,8 +81,8 @@ public class TestCase extends ActiveRecord<TestCase, Long> {
     }
 
     public Collection<TestCaseStep> getSteps() {
+        if(this.steps == null) return null;
         List<TestCaseStep> steps = JSONUtil.toBean(this.steps, new TypeReference<List<TestCaseStep>>() {}, false);
-        if(steps == null) return null;
         return Collections.unmodifiableList(steps);
     }
 
@@ -90,4 +90,19 @@ public class TestCase extends ActiveRecord<TestCase, Long> {
         this.steps = JSONUtil.toJsonStr(steps);
     }
 
+    @Override
+    public void verifyLogicConsistency() throws LogicConsistencyException {
+        TestCaseStatusEnum status = getStatusEnum();
+        if(status != TestCaseStatusEnum.NotStarted) {
+            if(this.ownerUserId == null) {
+                throw new LogicConsistencyException("TestCase.ownerUserId is null");
+            }
+            if(status == TestCaseStatusEnum.Completed && this.completeTime == null) {
+                throw new LogicConsistencyException("TestCase.completeTime is null");
+            }
+        }
+        if(status != TestCaseStatusEnum.Completed) {
+            this.completeTime = null;
+        }
+    }
 }

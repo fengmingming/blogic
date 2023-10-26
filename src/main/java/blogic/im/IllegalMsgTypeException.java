@@ -1,23 +1,11 @@
 package blogic.im;
 
-import blogic.core.exception.CodedException;
+import blogic.core.exception.AbstractCodedException;
 
-public class IllegalMsgTypeException extends RuntimeException implements CodedException {
-
-    private MsgType msgType;
+public class IllegalMsgTypeException extends AbstractCodedException {
 
     public IllegalMsgTypeException(MsgType msgType) {
-        this.msgType = msgType;
-    }
-
-    @Override
-    public int getCode() {
-        return 1004;
-    }
-
-    @Override
-    public Object[] getTemplateArgs() {
-        return new Object[]{this.msgType.name()};
+        super(1004, msgType.name());
     }
 
 }

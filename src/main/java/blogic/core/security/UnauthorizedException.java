@@ -1,12 +1,11 @@
 package blogic.core.security;
 
-import blogic.core.exception.CodedException;
+import blogic.core.exception.AbstractCodedException;
 
-public class UnauthorizedException extends RuntimeException implements CodedException {
+public class UnauthorizedException extends AbstractCodedException {
 
-    @Override
-    public int getCode() {
-        return 401;
+    public UnauthorizedException() {
+        super(401);
     }
 
 }

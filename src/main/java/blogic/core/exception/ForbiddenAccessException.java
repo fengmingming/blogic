@@ -1,10 +1,9 @@
 package blogic.core.exception;
 
-public class ForbiddenAccessException extends RuntimeException implements CodedException {
+public class ForbiddenAccessException extends AbstractCodedException {
 
-    @Override
-    public int getCode() {
-        return 403;
+    public ForbiddenAccessException() {
+        super(403);
     }
 
 }

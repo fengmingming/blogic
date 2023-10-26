@@ -97,43 +97,31 @@ public class TaskService {
 
         @Override
         public void verifyLogicConsistency() throws IllegalArgumentException {
-            if(status == TaskStatusEnum.NotStarted) {
-                this.startTime = null;
-                this.finalTime = null;
-                this.completeTime = null;
-                this.completeUserId = null;
-            }
-            if(status == TaskStatusEnum.InProgress) {
-                if(startTime == null) {
+            if (status == TaskStatusEnum.InProgress) {
+                if (startTime == null) {
                     throw new IllegalArgumentException("startTime is null");
                 }
-                this.finalTime = null;
-                this.completeTime = null;
-                this.completeUserId = null;
             }
-            if(status == TaskStatusEnum.Completed) {
-                if(startTime == null) {
+            if (status == TaskStatusEnum.Completed) {
+                if (startTime == null) {
                     throw new IllegalArgumentException("startTime is null");
                 }
-                if(completeTime == null) {
+                if (finalTime == null) {
+                    throw new IllegalArgumentException("finalTime is null");
+                }
+                if (completeTime == null) {
                     throw new IllegalArgumentException("completeTime is null");
                 }
                 if (completeUserId == null) {
                     throw new IllegalArgumentException("completeUserId is null");
                 }
             }
-            if(status == TaskStatusEnum.Completed) {
-                if(startTime == null) {
-                    throw new IllegalArgumentException("startTime is null");
-                }
-                if(finalTime == null) {
+            if (status == TaskStatusEnum.Canceled) {
+                if (finalTime == null) {
                     throw new IllegalArgumentException("finalTime is null");
                 }
-                this.completeTime = null;
-                this.completeUserId = null;
             }
         }
-
     }
 
     @Transactional
