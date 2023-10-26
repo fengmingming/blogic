@@ -18,6 +18,7 @@ import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Mono;
 
@@ -56,6 +57,7 @@ public class TestCaseService {
         private List<TestCaseStep> steps;
     }
 
+    @Transactional
     public Mono<TestCase> createTestCase(@NotNull @Valid CreateTestCaseCommand command) {
         TestCase testCase = new TestCase();
         testCase.setProductId(command.getProductId());
@@ -108,6 +110,7 @@ public class TestCaseService {
         }
     }
 
+    @Transactional
     public Mono<TestCase> updateTestCase(@NotNull @Valid UpdateTestCaseCommand command) {
         Mono<TestCase> testCaseMono = testCaseRepository.findById(command.getTestCaseId());
         Function<TestCase, Mono<TestCase>> saveTestCase = (it -> {
