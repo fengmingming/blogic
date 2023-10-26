@@ -31,7 +31,7 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
     @Column("product_id")
     private Long productId;
     @Column("iteration_version")
-    private String iteration_version;
+    private String iterationVersion;
     @Column("title")
     private String title;
     @Column("bug_type")
@@ -53,7 +53,7 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
     @Column("fix_user_id")
     private Long fixUserId;
     @Column("fix_solution")
-    private String fixSolution;
+    private Integer fixSolution;
     @Column("fix_version")
     private String fixVersion;
     @Column("create_user_id")
@@ -80,7 +80,23 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
 
     @Override
     public void verifyLogicConsistency() throws LogicConsistencyException {
-        
+        BugStatusEnum status = getStatusEnum();
+        if(status == BugStatusEnum.Activated || status == BugStatusEnum.Confirmed
+                || status == BugStatusEnum.solved) {
+            if(currentUserId == null) {
+                throw new LogicConsistencyException("UpdateBugCommand.currentUserId is null");
+            }
+        }
+        if(status == BugStatusEnum.solved) {
+            if(fixSolution == null) {
+                throw new LogicConsistencyException("UpdateBugCommand.fixSolution is null");
+            }
+        }
+        if(status == BugStatusEnum.UnAssigned || status == BugStatusEnum.Activated || status == BugStatusEnum.Confirmed) {
+            this.fixSolution = null;
+            this.fixUserId = null;
+            this.fixVersion = null;
+        }
     }
 
     public void setStatusEnum(BugStatusEnum status) {
