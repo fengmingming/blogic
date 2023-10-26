@@ -9,7 +9,6 @@ import blogic.productline.testcase.domain.QTestCase;
 import blogic.productline.testcase.domain.TestCaseStatusEnum;
 import blogic.productline.testcase.domain.TestCaseStep;
 import blogic.productline.testcase.domain.repository.TestCaseRepository;
-import blogic.productline.testcase.domain.repository.TestCaseStepRepository;
 import blogic.productline.testcase.service.TestCaseService;
 import blogic.user.domain.QUser;
 import com.querydsl.core.types.Predicate;
@@ -27,16 +26,12 @@ import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 public class TestCaseRest {
 
     @Autowired
     private TestCaseRepository testCaseRepository;
-    @Autowired
-    private TestCaseStepRepository stepRepository;
     @Autowired
     private ProductLineVerifier productLineVerifier;
     @Autowired
@@ -71,7 +66,7 @@ public class TestCaseRest {
         @Column("createUserName")
         private String createUserName;
         private LocalDateTime createTime;
-        private Collection<TestCaseStepDto> steps;
+        private Collection<TestCaseStep> steps;
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/TestCases")
@@ -96,26 +91,7 @@ public class TestCaseRest {
                     .leftJoin(ownerUser).on(qTestCase.ownerUserId.eq(ownerUser.id))
                     .leftJoin(createUser).on(qTestCase.createUserId.eq(createUser.id))
                     .where(predicate).offset(req.getOffset()).limit(req.getLimit());
-        }).all().collectList().flatMap(its -> {
-            return stepRepository.findAllByTestCaseId(its.stream().map(it -> it.getId()).collect(Collectors.toList())).collectList()
-                .flatMap(steps -> {
-                    Map<Long, List<TestCaseStep>> stepMap = steps.stream().collect(Collectors.groupingBy(TestCaseStep::getTestCaseId));
-                    its.stream().forEach(it -> {
-                        List<TestCaseStep> stepList = stepMap.get(it.getId());
-                        if(stepList != null) {
-                            it.setSteps(stepList.stream().map(step -> {
-                                TestCaseStepDto dto = new TestCaseStepDto();
-                                dto.setId(step.getId());
-                                dto.setNumber(step.getNumber());
-                                dto.setStep(step.getStep());
-                                dto.setExpectedResult(step.getExpectedResult());
-                                return dto;
-                            }).collect(Collectors.toList()));
-                        }
-                    });
-                    return Mono.just(ResVo.success(its));
-                });
-        }));
+        }).all().collectList().map(its -> ResVo.success(its)));
     }
 
     @Setter
@@ -130,7 +106,7 @@ public class TestCaseRest {
         private Boolean smoke;
         @NotNull
         @Size(min = 1, max = 100)
-        private List<TestCaseStepDto> steps;
+        private List<TestCaseStep> steps;
     }
 
     @PostMapping("/Companies/{companyId}/Products/{productId}/TestCases")

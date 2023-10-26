@@ -2,8 +2,8 @@ package blogic.productline.testcase.service;
 
 import blogic.productline.testcase.domain.TestCase;
 import blogic.productline.testcase.domain.TestCaseStatusEnum;
+import blogic.productline.testcase.domain.TestCaseStep;
 import blogic.productline.testcase.domain.repository.TestCaseRepository;
-import blogic.productline.testcase.rest.TestCaseStepDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -46,7 +46,7 @@ public class TestCaseService {
         private Long createUserId;
         @NotNull
         @Size(min = 1, max = 100)
-        private List<TestCaseStepDto> steps;
+        private List<TestCaseStep> steps;
     }
 
     public Mono<TestCase> createTestCase(@Valid CreateTestCaseCommand command) {

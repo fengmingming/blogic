@@ -205,20 +205,6 @@ create table blogic.test_case(
     key iteration_id_requirement_id (iteration_id, requirement_id)
 )engine=INNODB default charset=utf8mb4 comment='测试用例';
 
-create table blogic.test_case_step(
-	id bigint not null auto_increment comment '步骤id',
-    test_case_id bigint not null comment '用例id',
-    number varchar(50) not null comment '编号',
-    step varchar(1000) not null comment '步骤',
-    expected_result varchar(1000) not null comment '预期结果',
-    create_time datetime not null comment '创建时间',
-    update_time datetime null comment '修改时间',
-    deleted tinyint not null default 0 comment '0否 1已删除',
-    primary key (id),
-    key test_case_id (test_case_id)
-)engine=INNODB default charset=utf8mb4 comment='测试用例步骤';
-
-
 create table blogic.bug (
 	id bigint not null auto_increment comment 'bug的id',
     test_case_id bigint null comment '测试用例',

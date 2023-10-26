@@ -2,10 +2,11 @@ package blogic.productline.testcase.domain;
 
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
-import blogic.core.enums.IDigitalizedEnum;
 import blogic.productline.testcase.domain.repository.TestCaseRepository;
-import blogic.productline.testcase.domain.repository.TestCaseStepRepository;
+import cn.hutool.core.lang.TypeReference;
+import cn.hutool.json.JSONUtil;
 import jakarta.validation.constraints.NotNull;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
@@ -16,8 +17,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 @Setter
 @Getter
@@ -38,6 +40,9 @@ public class TestCase extends ActiveRecord<TestCase, Long> {
     private Integer priority;
     @Column("precondition")
     private String precondition;
+    @Column("steps")
+    @Setter(AccessLevel.NONE)
+    private String steps;
     @Column("owner_user_id")
     private Long ownerUserId;
     @Column("smoke")
@@ -75,14 +80,14 @@ public class TestCase extends ActiveRecord<TestCase, Long> {
         return TestCaseStatusEnum.findByCode(getStatus());
     }
 
-    public Mono<Void> saveSteps(Collection<TestCaseStep> steps) {
-        SpringContext.getBean(TestCaseStepRepository.class).saveAll(steps);
-        return null;
+    public Collection<TestCaseStep> getSteps() {
+        List<TestCaseStep> steps = JSONUtil.toBean(this.steps, new TypeReference<List<TestCaseStep>>() {}, false);
+        if(steps == null) return null;
+        return Collections.unmodifiableList(steps);
     }
 
-    public Flux<TestCaseStep> findSteps() {
-        if(getId() == null) return Flux.empty();
-        return SpringContext.getBean(TestCaseStepRepository.class).findAllByTestCaseId(getId());
+    public void setSteps(Collection<TestCaseStep> steps) {
+        this.steps = JSONUtil.toJsonStr(steps);
     }
 
 }
