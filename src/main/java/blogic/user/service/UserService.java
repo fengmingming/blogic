@@ -137,7 +137,7 @@ public class UserService {
      */
     public Mono<Boolean> validUserIdAndCompanyId(Long userId, Long companyId) {
         return userCompanyRoleRepository.findByUserId(userId).map(it -> it.getCompanyId())
-                .filter(it -> it.equals(companyId)).count().map(it -> it > 0).defaultIfEmpty(false);
+                .filter(it -> it.equals(companyId)).count().map(it -> it > 0).switchIfEmpty(Mono.just(false));
     }
 
     public Mono<Void> switchUserCurrentContext(TokenInfo tokenInfo, Long companyId, String token) {

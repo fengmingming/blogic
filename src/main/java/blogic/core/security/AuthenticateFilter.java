@@ -37,7 +37,7 @@ public class AuthenticateFilter implements WebFilter {
         ServerHttpRequest request = exchange.getRequest();
         String funcUrl = buildFuncUrl(request.getMethod().name(), request.getPath().value(), request.getQueryParams());
         FuncTrees reqFT = FuncTrees.buildFuncTrees(Arrays.asList(funcUrl));
-        Mono<Void> authenticateMono = authenticate(exchange, reqFT).defaultIfEmpty(false).flatMap(it -> {
+        Mono<Void> authenticateMono = authenticate(exchange, reqFT).switchIfEmpty(Mono.just(false)).flatMap(it -> {
             if(it) {
                 return chain.filter(exchange);
             }else {

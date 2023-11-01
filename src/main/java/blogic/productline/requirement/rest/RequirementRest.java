@@ -202,7 +202,7 @@ public class RequirementRest {
     }
 
     @DeleteMapping("/Companies/{companyId}/Products/{productId}/Requirements/{requirementId}")
-    public Mono<Void> deleteRequirement(@PathVariable("companyId") Long companyId,
+    public Mono<ResVo<?>> deleteRequirement(@PathVariable("companyId") Long companyId,
                                         @PathVariable("productId")Long productId,
                                         @PathVariable("requirementId")Long requirementId,
                                         TokenInfo tokenInfo, UserCurrentContext context) {
@@ -219,7 +219,7 @@ public class RequirementRest {
             }else {
                 return Mono.error(new ForbiddenAccessException());
             }
-        })).then(requirementService.deleteRequirement(requirementId)).then();
+        })).then(requirementService.deleteRequirement(requirementId)).then(Mono.just(ResVo.success()));
     }
 
 
