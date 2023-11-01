@@ -172,7 +172,7 @@ public class RequirementRest {
     }
 
     @PutMapping("/Companies/{companyId}/Products/{productId}/Requirements/{requirementId}")
-    public Mono<Void> updateRequirement(@PathVariable("companyId") Long companyId,
+    public Mono<ResVo<?>> updateRequirement(@PathVariable("companyId") Long companyId,
                                         @PathVariable("productId")Long productId,
                                         @PathVariable("requirementId")Long requirementId,
                                         TokenInfo tokenInfo, UserCurrentContext context,
@@ -190,7 +190,7 @@ public class RequirementRest {
             }else {
                 return Mono.error(new ForbiddenAccessException());
             }
-        })).then(Mono.fromSupplier(() -> {
+        })).then(Mono.defer(() -> {
             RequirementService.UpdateRequirementCommand command = new RequirementService.UpdateRequirementCommand();
             command.setRequirementId(requirementId);
             command.setRequirementName(req.getRequirementName());
@@ -198,7 +198,7 @@ public class RequirementRest {
             command.setRequirementDesc(req.getRequirementDesc());
             command.setRequirementStatus(req.getRequirementStatus());
             return requirementService.updateRequirement(command);
-        })).then();
+        })).then(Mono.just(ResVo.success()));
     }
 
     @DeleteMapping("/Companies/{companyId}/Products/{productId}/Requirements/{requirementId}")
