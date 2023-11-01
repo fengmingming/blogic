@@ -63,6 +63,8 @@ public class RequirementService {
         @Length(max = 254)
         private String requirementSources;
         private String requirementDesc;
+        @NotNull
+        private RequirementStatus requirementStatus;
     }
 
     @Transactional
@@ -72,6 +74,7 @@ public class RequirementService {
                     it.setRequirementName(command.getRequirementName());
                     it.setRequirementSources(command.getRequirementSources());
                     it.setRequirementDesc(command.getRequirementDesc());
+                    it.setRequirementStatusEnum(command.getRequirementStatus());
                 }).flatMap(it -> {
                     return requirementRepository.save(it);
                 }).then();

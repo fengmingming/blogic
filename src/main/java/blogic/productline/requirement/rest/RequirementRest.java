@@ -1,7 +1,8 @@
 package blogic.productline.requirement.rest;
 
-import blogic.core.exception.ForbiddenAccessException;
+import blogic.core.enums.DigitalizedEnumPropertyEditor;
 import blogic.core.enums.json.DigitalizedEnumDeserializer;
+import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
@@ -20,11 +21,13 @@ import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -40,11 +43,15 @@ public class RequirementRest {
     @Autowired
     private RequirementService requirementService;
 
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        binder.registerCustomEditor(RequirementStatus.class, new DigitalizedEnumPropertyEditor(RequirementStatus.class));
+    }
+
     @Setter
     @Getter
     public static class FindRequirementReq extends Paging {
         private String requirementName;
-        @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
         private RequirementStatus requirementStatus;
         private Long createUserId;
     }
@@ -53,7 +60,7 @@ public class RequirementRest {
     public Mono<ResVo<?>> findRequirements(@PathVariable("companyId") Long companyId,
                                            @PathVariable("productId")Long productId,
                                            TokenInfo tokenInfo, UserCurrentContext context,
-                                           @RequestBody FindRequirementReq req) {
+                                           FindRequirementReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Boolean> verifyProductBelongToCompanyMono = productRepository.verifyProductBelongToCompany(productId, companyId);
         return verifyProductBelongToCompanyMono.flatMapMany(it -> {
@@ -130,7 +137,7 @@ public class RequirementRest {
     }
 
     @PostMapping("/Companies/{companyId}/Products/{productId}/Requirements")
-    public Mono<Long> createRequirement(@PathVariable("companyId") Long companyId,
+    public Mono<ResVo<?>> createRequirement(@PathVariable("companyId") Long companyId,
                                         @PathVariable("productId")Long productId,
                                         TokenInfo tokenInfo, UserCurrentContext context,
                                         @RequestBody @Valid CreateRequirementReq req) {
@@ -143,7 +150,7 @@ public class RequirementRest {
                 command.setRequirementSources(req.getRequirementSources());
                 command.setRequirementDesc(req.getRequirementDesc());
                 command.setCreateUserId(tokenInfo.getUserId());
-                return requirementService.createRequirement(command).map(r -> r.getId());
+                return requirementService.createRequirement(command).map(r -> ResVo.success());
             }else {
                 return Mono.error(new ForbiddenAccessException());
             }
@@ -159,6 +166,9 @@ public class RequirementRest {
         @Length(max = 254)
         private String requirementSources;
         private String requirementDesc;
+        @NotNull
+        @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
+        private RequirementStatus requirementStatus;
     }
 
     @PutMapping("/Companies/{companyId}/Products/{productId}/Requirements/{requirementId}")
@@ -186,6 +196,7 @@ public class RequirementRest {
             command.setRequirementName(req.getRequirementName());
             command.setRequirementSources(req.getRequirementName());
             command.setRequirementDesc(req.getRequirementDesc());
+            command.setRequirementStatus(req.getRequirementStatus());
             return requirementService.updateRequirement(command);
         })).then();
     }

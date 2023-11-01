@@ -18,6 +18,8 @@ spring:
       enabled: true
 
 logging:
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS}|%-5level|%X{traceId}|%X{spanId}|${spring.application.name}|%t|%C|%m%n'
   level:
     root: info
     blogic: debug
