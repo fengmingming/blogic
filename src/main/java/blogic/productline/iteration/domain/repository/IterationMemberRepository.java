@@ -10,7 +10,7 @@ import reactor.core.publisher.Flux;
 public interface IterationMemberRepository extends QuerydslR2dbcRepository<IterationMember, Long> {
 
     default Flux<IterationMember> findByIterationId(Long iterationId) {
-        return query(q -> q.select(QIterationMember.iterationMember)
+        return query(q -> q.select(QIterationMember.iterationMember).from(QIterationMember.iterationMember)
                 .where(QIterationMember.iterationMember.iterationId.eq(iterationId))).all();
     }
 

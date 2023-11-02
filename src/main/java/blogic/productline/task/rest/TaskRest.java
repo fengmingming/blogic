@@ -1,5 +1,6 @@
 package blogic.productline.task.rest;
 
+import blogic.core.enums.DigitalizedEnumPropertyEditor;
 import blogic.core.enums.json.DigitalizedEnumDeserializer;
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.exception.IllegalArgumentException;
@@ -10,6 +11,7 @@ import blogic.core.security.UserCurrentContext;
 import blogic.core.validation.DTOLogicConsistencyVerifier;
 import blogic.core.validation.DTOLogicValid;
 import blogic.productline.infras.ProductLineVerifier;
+import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.task.domain.QTask;
 import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
@@ -32,6 +34,7 @@ import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -46,6 +49,13 @@ public class TaskRest {
     private TaskService taskService;
     @Autowired
     private ProductLineVerifier productLineVerifier;
+    @Autowired
+    private ProductRepository productRepository;
+
+    @InitBinder
+    public void initBinder(WebDataBinder dataBinder) {
+        dataBinder.registerCustomEditor(TaskStatusEnum.class, new DigitalizedEnumPropertyEditor(TaskStatusEnum.class));
+    }
 
     @Setter
     @Getter
@@ -150,7 +160,14 @@ public class TaskRest {
                                      TokenInfo token, UserCurrentContext context, @RequestBody @Valid CreateTaskReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, req.getRequirementId(), req.getIterationId(), null);
-        return verifyMono.then(Mono.fromSupplier(() -> {
+        Mono<Void> userVerifyMono = Mono.defer(() -> {
+            if(req.getCurrentUserId() != null) {
+                return productLineVerifier.containsUserOrThrowException(productId, req.getCurrentUserId());
+            }else {
+                return Mono.empty();
+            }
+        });
+        return verifyMono.then(userVerifyMono).then(Mono.fromSupplier(() -> {
             TaskService.CreateTaskCommand command = new TaskService.CreateTaskCommand();
             command.setProductId(productId);
             command.setIterationId(req.getIterationId());
@@ -177,7 +194,6 @@ public class TaskRest {
         @Length(max = 254)
         private String taskName;
         private String taskDesc;
-        @NotNull
         private Long currentUserId;
         @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
         @NotNull
@@ -199,10 +215,16 @@ public class TaskRest {
                 if(startTime == null) {
                     throw new IllegalArgumentException("startTime is null");
                 }
+                if(currentUserId == null) {
+                    throw new IllegalArgumentException("currentUserId is null");
+                }
             }
             if(status == TaskStatusEnum.Completed) {
                 if (startTime == null || completeTime == null) {
                     throw new IllegalArgumentException("startTime or completeTime is null");
+                }
+                if(currentUserId == null) {
+                    throw new IllegalArgumentException("currentUserId is null");
                 }
             }
             if(status == TaskStatusEnum.Canceled) {
@@ -220,8 +242,12 @@ public class TaskRest {
                                      @RequestBody @Valid UpdateTaskReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Boolean> verifyMono = productLineVerifier.verifyTask(companyId, productId, req.getRequirementId(), req.getIterationId(), taskId);
-        return verifyMono.flatMap(it -> {
-            if(it) {
+        Mono<Boolean> userVerifyMono = Mono.just(true);
+        if(req.getCurrentUserId() != null) {
+            userVerifyMono = productLineVerifier.containsUser(productId, req.getCurrentUserId());
+        }
+        return Mono.zip(verifyMono, userVerifyMono).flatMap(tuple2 -> {
+            if(tuple2.getT1() && tuple2.getT2()) {
                 TaskService.UpdateTaskCommand command = new TaskService.UpdateTaskCommand();
                 command.setTaskId(taskId);
                 command.setRequirementId(req.getRequirementId());

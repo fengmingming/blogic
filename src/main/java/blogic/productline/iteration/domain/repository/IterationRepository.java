@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
 public interface IterationRepository extends QuerydslR2dbcRepository<Iteration, Long> {
 
     default Mono<Boolean> verifyIterationBelongToProduct(Long iterationId, Long productId) {
-        return query(q -> q.select(QIteration.iteration.id.count())
+        return query(q -> q.select(QIteration.iteration.id.count()).from(QIteration.iteration)
                 .where(QIteration.iteration.id.eq(iterationId).and(QIteration.iteration.productId.eq(productId))))
                 .one().map(it -> it > 0);
     }

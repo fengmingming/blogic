@@ -1,12 +1,13 @@
 package blogic.productline.task.service;
 
+import blogic.core.enums.json.DigitalizedEnumDeserializer;
 import blogic.core.exception.IllegalArgumentException;
-import blogic.core.validation.DTOLogicConsistencyConstraintValidator;
 import blogic.core.validation.DTOLogicConsistencyVerifier;
 import blogic.core.validation.DTOLogicValid;
 import blogic.productline.task.domain.Task;
 import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -40,7 +41,6 @@ public class TaskService {
         @Length(max = 254)
         private String taskName;
         private String taskDesc;
-        @NotNull
         private Long currentUserId;
         @NotNull
         private Integer priority;
@@ -79,9 +79,9 @@ public class TaskService {
         @Length(max = 254)
         private String taskName;
         private String taskDesc;
-        @NotNull
         private Long currentUserId;
         @NotNull
+        @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
         private TaskStatusEnum status;
         @NotNull
         private Integer priority;
@@ -101,6 +101,9 @@ public class TaskService {
                 if (startTime == null) {
                     throw new IllegalArgumentException("startTime is null");
                 }
+                if(currentUserId == null) {
+                    throw new IllegalArgumentException("currentUserId is null");
+                }
             }
             if (status == TaskStatusEnum.Completed) {
                 if (startTime == null) {
@@ -114,6 +117,9 @@ public class TaskService {
                 }
                 if (completeUserId == null) {
                     throw new IllegalArgumentException("completeUserId is null");
+                }
+                if(currentUserId == null) {
+                    throw new IllegalArgumentException("currentUserId is null");
                 }
             }
             if (status == TaskStatusEnum.Canceled) {

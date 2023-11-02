@@ -16,6 +16,7 @@ import blogic.productline.requirement.domain.QRequirement;
 import blogic.productline.requirement.domain.RequirementRepository;
 import blogic.user.domain.QUser;
 import cn.hutool.core.collection.CollectionUtil;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
@@ -33,6 +34,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -112,7 +114,9 @@ public class IterationRest {
         @NotNull
         @Length(max = 254)
         private String name;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime scheduledStartTime;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime scheduledEndTime;
         private List<Long> userIds;
         private List<Long> requirementIds;
@@ -125,11 +129,14 @@ public class IterationRest {
         return productRepository.verifyProductBelongToCompany(productId, companyId).flatMap(it -> {
             if(it) {
                 Mono<List<Long>> usersMono = productRepository.findById(productId).flatMapMany(p -> p.findMembers()).collectList().map(its -> its.stream().map(u -> u.getUserId()).collect(Collectors.toList()));
-                Mono<List<Long>> requirementsMono = requirementRepository.query(q -> q.select(QRequirement.requirement.id)
-                        .where(QRequirement.requirement.id.in(req.getRequirementIds()).and(QRequirement.requirement.productId.eq(productId))))
-                        .all().collectList();
                 if(CollectionUtil.isNotEmpty(req.getUserIds())) {
                     usersMono = usersMono.map(its -> new ArrayList<>(CollectionUtil.intersection(its, req.getUserIds())));
+                }
+                Mono<List<Long>> requirementsMono = Mono.just(Collections.EMPTY_LIST);
+                if(CollectionUtil.isNotEmpty(req.getRequirementIds())) {
+                    requirementsMono = requirementRepository.query(q -> q.select(QRequirement.requirement.id).from(QRequirement.requirement)
+                            .where(QRequirement.requirement.id.in(req.getRequirementIds()).and(QRequirement.requirement.productId.eq(productId))))
+                            .all().collectList();
                 }
                 return Mono.zip(usersMono, requirementsMono).flatMap(tuple2 -> {
                     List<Long> userIds = tuple2.getT1();
@@ -185,7 +192,7 @@ public class IterationRest {
                 if(CollectionUtil.isNotEmpty(req.getUserIds())) {
                     usersMono = usersMono.map(its -> new ArrayList<>(CollectionUtil.intersection(its, req.getUserIds())));
                 }
-                Mono<List<Long>> requirementsMono = requirementRepository.query(q -> q.select(QRequirement.requirement.id)
+                Mono<List<Long>> requirementsMono = requirementRepository.query(q -> q.select(QRequirement.requirement.id).from(QRequirement.requirement)
                                 .where(QRequirement.requirement.id.in(req.getRequirementIds()).and(QRequirement.requirement.productId.eq(productId))))
                         .all().collectList();
                 return Mono.zip(usersMono, requirementsMono).flatMap(tuple2 -> {
@@ -197,6 +204,7 @@ public class IterationRest {
                     command.setScheduledEndTime(req.getScheduledEndTime());
                     command.setUserIds(tuple2.getT1());
                     command.setRequirementIds(tuple2.getT2());
+                    command.setIterationStatus(req.getIterationStatus());
                     return iterationService.updateIteration(command);
                 });
             })).then(Mono.just(ResVo.success()));

@@ -185,6 +185,13 @@ public class TestCaseRest {
                                          @RequestBody @Valid UpdateTaskCaseReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, req.getRequirementId(), req.getIterationId(), testCaseId);
+        Mono<Void> ownerVerifyMono = Mono.defer(() -> {
+            if(req.getOwnerUserId() != null) {
+                return productLineVerifier.containsUserOrThrowException(productId, req.getOwnerUserId());
+            }else {
+                return Mono.empty();
+            }
+        });
         TestCaseService.UpdateTestCaseCommand command = new TestCaseService.UpdateTestCaseCommand();
         command.setTestCaseId(testCaseId);
         command.setRequirementId(req.getRequirementId());
@@ -197,7 +204,7 @@ public class TestCaseRest {
         command.setOwnerUserId(req.getOwnerUserId());
         command.setStatus(req.getStatus());
         command.setCompleteTime(req.getCompleteTime());
-        return verifyMono.then(testCaseService.updateTestCase(command)).then(Mono.just(ResVo.success()));
+        return verifyMono.then(ownerVerifyMono).then(testCaseService.updateTestCase(command)).then(Mono.just(ResVo.success()));
     }
 
 }

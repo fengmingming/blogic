@@ -1,7 +1,10 @@
 package blogic.productline.infras;
 
+import blogic.core.exception.ForbiddenAccessException;
 import blogic.productline.bug.domain.repository.BugRepository;
 import blogic.productline.iteration.domain.repository.IterationRepository;
+import blogic.productline.product.domain.QProductMember;
+import blogic.productline.product.domain.repository.ProductMemberRepository;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.requirement.domain.RequirementRepository;
 import blogic.productline.task.domain.repository.TaskRepository;
@@ -18,6 +21,8 @@ public class ProductLineVerifier {
 
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private ProductMemberRepository productMemberRepository;
     @Autowired
     private RequirementRepository requirementRepository;
     @Autowired
@@ -143,6 +148,23 @@ public class ProductLineVerifier {
             verifyMono = verifyMono.then(bugRepository.verifyBugBelongToProductThrowException(bugId, productId));
         }
         return verifyMono;
+    }
+
+    public Mono<Boolean> containsUser(Long productId, Long ... userIds) {
+        return productMemberRepository.query(q -> q.select(QProductMember.productMember.id.count())
+                .from(QProductMember.productMember)
+                .where(QProductMember.productMember.productId.eq(productId).and(QProductMember.productMember.userId.in(userIds)))
+        ).one().map(it -> it == userIds.length);
+    }
+
+    public Mono<Void> containsUserOrThrowException(Long productId, Long ... userIds) {
+        return containsUser(productId, userIds).flatMap(it -> {
+            if(it) {
+                return Mono.empty();
+            }else {
+                return Mono.error(new ForbiddenAccessException());
+            }
+        });
     }
 
 }
