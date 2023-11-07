@@ -70,6 +70,7 @@ public class TestCaseService {
         testCase.setOwnerUserId(command.getOwnerUserId());
         testCase.setSmoke(command.getSmoke());
         testCase.setCreateUserId(command.getCreateUserId());
+        testCase.setSteps(command.getSteps());
         testCase.setCreateTime(LocalDateTime.now());
         return testCaseRepository.save(testCase);
     }

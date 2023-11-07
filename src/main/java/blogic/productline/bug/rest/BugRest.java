@@ -57,6 +57,8 @@ public class BugRest {
         private String title;
     }
 
+    @Getter
+    @Setter
     public static class FindBugRes {
         private Long testCaseId;
         private Long requirementId;
@@ -136,9 +138,6 @@ public class BugRest {
         @Length(max = 1000)
         private String reproSteps;
         @NotNull
-        @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
-        private BugStatusEnum status;
-        @NotNull
         private Integer severity;
         @NotNull
         private Integer priority;
@@ -175,6 +174,7 @@ public class BugRest {
         private String device;
         private String reproSteps;
         @NotNull
+        @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
         private BugStatusEnum status;
         private Integer severity;
         private Integer priority;

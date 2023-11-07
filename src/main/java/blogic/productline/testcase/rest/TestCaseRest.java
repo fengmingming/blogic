@@ -15,6 +15,8 @@ import blogic.productline.testcase.domain.TestCaseStep;
 import blogic.productline.testcase.domain.repository.TestCaseRepository;
 import blogic.productline.testcase.service.TestCaseService;
 import blogic.user.domain.QUser;
+import cn.hutool.core.lang.TypeReference;
+import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.querydsl.core.types.Predicate;
@@ -23,7 +25,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -71,11 +72,18 @@ public class TestCaseRest {
         private String ownerUserName;
         private Boolean smoke;
         private Integer status;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime completeTime;
         @Column("createUserName")
         private String createUserName;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime createTime;
-        private Collection<TestCaseStep> steps;
+        private String steps;
+
+        public Collection<TestCaseStep> getSteps() {
+            return JSONUtil.toBean(this.steps, new TypeReference<List<TestCaseStep>>() {}, false);
+        }
+
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/TestCases")
@@ -92,14 +100,14 @@ public class TestCaseRest {
                 req.getIterationId(), null);
         return verifyMono.then(testCaseRepository.query(q -> {
             QTestCase qTestCase = QTestCase.testCase;
-            QUser ownerUser = QUser.user;
-            QUser createUser = QUser.user;
+            QUser ownerUser = new QUser("ownerUser");
+            QUser createUser = new QUser("createUser");
             Predicate predicate = qTestCase.productId.eq(productId).and(qTestCase.deleted.eq(false));
             return q.select(Projections.bean(FindTestCasesRes.class, qTestCase, ownerUser.name.as("ownerUserName"), createUser.name.as("createUserName")))
                     .from(qTestCase)
                     .leftJoin(ownerUser).on(qTestCase.ownerUserId.eq(ownerUser.id))
                     .leftJoin(createUser).on(qTestCase.createUserId.eq(createUser.id))
-                    .where(predicate).offset(req.getOffset()).limit(req.getLimit());
+                    .where(predicate).orderBy(qTestCase.id.desc()).offset(req.getOffset()).limit(req.getLimit());
         }).all().collectList().map(its -> ResVo.success(its)));
     }
 

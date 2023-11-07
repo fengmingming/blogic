@@ -23,12 +23,12 @@ public enum BugStatusEnum implements IDigitalizedEnum {
 
     @Override
     public int getCode() {
-        return 0;
+        return this.code;
     }
 
     @Override
     public String getCodeDesc() {
-        return null;
+        return this.codeDesc;
     }
 
     public static BugStatusEnum findByCode(int code) {
