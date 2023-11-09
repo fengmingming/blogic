@@ -12,14 +12,8 @@ import org.springframework.context.annotation.Configuration;
 public class BLogicRestConfiguration {
 
     @Bean
-    public DefaultErrorAttributes.ErrorHandleProperties errorHandleProperties() {
-        return new DefaultErrorAttributes.ErrorHandleProperties();
-    }
-
-    @Bean
-    public ErrorAttributes defaultErrorAttributes(@Autowired DefaultErrorAttributes.ErrorHandleProperties errorHandleProperties,
-                                                  @Autowired MessageSource codedExceptionMessageSource) {
-        return new DefaultErrorAttributes(errorHandleProperties, codedExceptionMessageSource);
+    public ErrorAttributes defaultErrorAttributes(@Autowired MessageSource codedExceptionMessageSource) {
+        return new DefaultErrorAttributes(codedExceptionMessageSource);
     }
 
 }
