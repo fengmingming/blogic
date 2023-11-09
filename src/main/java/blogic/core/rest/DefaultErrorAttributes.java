@@ -48,7 +48,7 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
     }
 
     private String doGetMessage(Throwable e, Locale locale) {
-        log.error("", e);
+        log.error("caught exception", e);
         if(e instanceof NestedRuntimeException nestedE) {
             e = nestedE.getMostSpecificCause();
         }
