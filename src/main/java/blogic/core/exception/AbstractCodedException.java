@@ -21,6 +21,12 @@ public abstract class AbstractCodedException extends RuntimeException implements
         this.templateArgs = templateArgs;
     }
 
+    public AbstractCodedException(int code, Throwable throwable, boolean writableStackTrace, Object ... templateArgs) {
+        super(SpringContext.getMessage(code, Locale.getDefault(), String.format("service exception [%d]", code), templateArgs), throwable, true, writableStackTrace);
+        this.code = code;
+        this.templateArgs = templateArgs;
+    }
+
     @Override
     public int getCode() {
         return code;
