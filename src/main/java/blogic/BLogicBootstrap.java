@@ -42,7 +42,7 @@ public class BLogicBootstrap {
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         UrlBasedCorsConfigurationSource configSource = new UrlBasedCorsConfigurationSource();
-        configSource.registerCorsConfiguration("/*", config);
+        configSource.registerCorsConfiguration("/**", config);
         return new CorsWebFilter(configSource);
     }
 
