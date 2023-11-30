@@ -66,23 +66,26 @@ public class AuthenticateFilter implements WebFilter {
     }
 
     protected Mono<Boolean> authenticate(ServerWebExchange exchange, FuncTrees reqFT) {
-        String authorization = exchange.getRequest().getHeaders().getFirst("Authorization");
-        if(StrUtil.isBlank(authorization)) return Mono.error(new UnauthorizedException());
-        String token = JwtTokenUtil.getTokenFromAuthorization(authorization);
-        if(!JwtTokenUtil.validToken(token, jwtKeyProperties.getKey().getBytes(StandardCharsets.UTF_8))) {
-            return Mono.error(new UnauthorizedException());
-        }
-        TokenInfo tokenInfo = JwtTokenUtil.getTokenInfo(token);
-        exchange.getAttributes().putIfAbsent(TOKEN_INFO_ATTRIBUTE_KEY, tokenInfo);
-        return userCurrentContextRepository.findAndRefreshIdleTime(tokenInfo).flatMap(current -> {
-            exchange.getAttributes().putIfAbsent(USER_CURRENT_CONTEXT_ATTRIBUTE_KEY, current);
-            return roleAndPermissionsRepository.findFuncTrees(tokenInfo.getUserId()).map(fts -> {
-                Optional<FuncTree.Authorities> authoritiesOpt = FuncTrees.match(fts, reqFT.firstFuncTree().get());
-                if(!authoritiesOpt.isPresent()) return true;
-                return CollectionUtil.intersection(authoritiesOpt.get().getAuthorities(),
-                        current.getAuthorities().stream().map(it -> it.name()).collect(Collectors.toSet())).size() > 0;
+        return Mono.defer(() -> {
+            String authorization = exchange.getRequest().getHeaders().getFirst("Authorization");
+            if(StrUtil.isBlank(authorization)) return Mono.error(new UnauthorizedException());
+            String token = JwtTokenUtil.getTokenFromAuthorization(authorization);
+            if(!JwtTokenUtil.validToken(token, jwtKeyProperties.getKey().getBytes(StandardCharsets.UTF_8))) {
+                return Mono.error(new UnauthorizedException());
+            }
+            TokenInfo tokenInfo = JwtTokenUtil.getTokenInfo(token);
+            exchange.getAttributes().putIfAbsent(TOKEN_INFO_ATTRIBUTE_KEY, tokenInfo);
+            return userCurrentContextRepository.findAndRefreshIdleTime(tokenInfo).flatMap(current -> {
+                exchange.getAttributes().putIfAbsent(USER_CURRENT_CONTEXT_ATTRIBUTE_KEY, current);
+                return roleAndPermissionsRepository.findFuncTrees(tokenInfo.getUserId()).map(fts -> {
+                    Optional<FuncTree.Authorities> authoritiesOpt = FuncTrees.match(fts, reqFT.firstFuncTree().get());
+                    if(!authoritiesOpt.isPresent()) return true;
+                    return CollectionUtil.intersection(authoritiesOpt.get().getAuthorities(),
+                            current.getAuthorities().stream().map(it -> it.name()).collect(Collectors.toSet())).size() > 0;
+                });
             });
         });
+
     }
 
     @ConfigurationProperties(prefix = "blogic.jwt")

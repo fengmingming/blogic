@@ -4,6 +4,7 @@ import blogic.core.rest.ResVo;
 import blogic.core.security.*;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserService;
+import cn.hutool.core.map.MapUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -52,14 +53,16 @@ public class LoginRest {
     public Mono<ResVo<?>> login(@Valid @RequestBody LoginReq req, Locale locale) {
         return userRepository.findByPhone(req.getPhone()).filter(it -> !it.getDeleted()).flatMap(user -> {
             if(BCrypt.checkpw(req.getPassword(), user.getPassword())) {
-                Mono<ResVo<String>> createTokenMono = userService.createToken(user.getId(), req.getTerminal()).map(token -> ResVo.success(token));
+                Mono<String> createTokenMono = userService.createToken(user.getId(), req.getTerminal());
                 TokenInfo tokenInfo = TokenInfo.builder().userId(user.getId()).terminal(req.getTerminal()).build();
                 return userCurrentContextRepository.findAndRefreshIdleTime(tokenInfo)
                         .flatMap(context -> userCurrentContextRepository.delete(tokenInfo))
-                        .then(createTokenMono).flatMap(resVo -> {
+                        .then(createTokenMono).flatMap(token -> {
                             UserCurrentContext context = UserCurrentContext.builder().build();
                             return userCurrentContextRepository.save(tokenInfo, context, jwtKeyProperties.getTimeout(), TimeUnit.MINUTES)
-                                    .then(Mono.just(resVo));
+                                    .then(Mono.just(ResVo.success(MapUtil.builder()
+                                            .put("token", token).put("userId",user.getId())
+                                            .build())));
                         });
             }else {
                 return Mono.just(ResVo.error(1001, locale));

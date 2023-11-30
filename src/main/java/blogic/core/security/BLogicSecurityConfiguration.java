@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.reactive.config.WebFluxConfigurer;
 
 @EnableConfigurationProperties
@@ -23,6 +24,7 @@ public class BLogicSecurityConfiguration {
     }
 
     @Bean
+    @Order(100)
     public AuthenticateFilter authenticateFilter(@Autowired RoleAndPermissionsRepository roleAndPermissionsRepository,
                                                  @Autowired PermitUrlRepository permitUrlRepository,
                                                  @Autowired AuthenticateFilter.JwtKeyProperties jwtKeyProperties,
