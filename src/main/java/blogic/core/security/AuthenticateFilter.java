@@ -75,7 +75,7 @@ public class AuthenticateFilter implements WebFilter {
             }
             TokenInfo tokenInfo = JwtTokenUtil.getTokenInfo(token);
             exchange.getAttributes().putIfAbsent(TOKEN_INFO_ATTRIBUTE_KEY, tokenInfo);
-            return userCurrentContextRepository.findAndRefreshIdleTime(tokenInfo).flatMap(current -> {
+            return userCurrentContextRepository.findAndRefreshIdleTime(tokenInfo).switchIfEmpty(Mono.error(new UnauthorizedException())).flatMap(current -> {
                 exchange.getAttributes().putIfAbsent(USER_CURRENT_CONTEXT_ATTRIBUTE_KEY, current);
                 return roleAndPermissionsRepository.findFuncTrees(tokenInfo.getUserId()).map(fts -> {
                     Optional<FuncTree.Authorities> authoritiesOpt = FuncTrees.match(fts, reqFT.firstFuncTree().get());
@@ -93,7 +93,7 @@ public class AuthenticateFilter implements WebFilter {
     @Setter
     public static class JwtKeyProperties {
         private String key;
-        private Integer timeout = 30;
+        private Integer timeout = 300;
     }
 
 }
