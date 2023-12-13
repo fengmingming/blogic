@@ -60,25 +60,34 @@ public class ProductRest {
         if (context.authenticate(RoleEnum.ROLE_MANAGER)) {
             QProduct qProduct = QProduct.product;
             QUser qUser = QUser.user;
-            return productRepository.query(query -> query.select(Projections.bean(FindProductRes.class, qProduct, qUser.name.as("createUserName")))
-                .from(qProduct)
-                .leftJoin(qUser).on(qProduct.createUserId.eq(qUser.id))
-                .where(qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false)))
-                .orderBy(qProduct.createTime.desc())
-                .offset(paging.getOffset()).limit(paging.getLimit())
-            ).all().collectList().map(t -> ResVo.success(t));
+            Mono<List<FindProductRes>> productListMono = productRepository.query(query -> query.select(Projections.bean(FindProductRes.class, qProduct, qUser.name.as("createUserName")))
+                    .from(qProduct)
+                    .leftJoin(qUser).on(qProduct.createUserId.eq(qUser.id))
+                    .where(qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false)))
+                    .orderBy(qProduct.createTime.desc())
+                    .offset(paging.getOffset()).limit(paging.getLimit())).all().collectList();
+            Mono<Long> productTotalMono = productRepository.query(query -> query.select(qProduct.count())
+                    .from(qProduct)
+                    .leftJoin(qUser).on(qProduct.createUserId.eq(qUser.id))
+                    .where(qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false)))).one();
+            return Mono.zip(productListMono, productTotalMono).map(t -> ResVo.success(t.getT2(), t.getT1()));
         } else {
             QProduct qProduct = QProduct.product;
             QProductMember qPm = QProductMember.productMember;
             QUser qUser = QUser.user;
-            return productRepository.query(query -> query.select(Projections.bean(FindProductRes.class, qProduct, qUser.name.as("createUserName")))
-                .from(qProduct)
-                .innerJoin(qPm).on(qProduct.id.eq(qPm.productId).and(qPm.userId.eq(tokenInfo.getUserId())).and(qProduct.companyId.eq(companyId)))
-                .innerJoin(qUser).on(qUser.id.eq(qProduct.createUserId))
-                .where(qProduct.deleted.isFalse())
-                .orderBy(qProduct.createTime.desc())
-                .offset(paging.getOffset()).limit(paging.getLimit())
-            ).all().collectList().map(t -> ResVo.success(t));
+            Mono<List<FindProductRes>> productListMono = productRepository.query(query -> query.select(Projections.bean(FindProductRes.class, qProduct, qUser.name.as("createUserName")))
+                    .from(qProduct)
+                    .innerJoin(qPm).on(qProduct.id.eq(qPm.productId).and(qPm.userId.eq(tokenInfo.getUserId())).and(qProduct.companyId.eq(companyId)))
+                    .innerJoin(qUser).on(qUser.id.eq(qProduct.createUserId))
+                    .where(qProduct.deleted.isFalse())
+                    .orderBy(qProduct.createTime.desc())
+                    .offset(paging.getOffset()).limit(paging.getLimit())).all().collectList();
+            Mono<Long> productTotalMono = productRepository.query(query -> query.select(qProduct.count())
+                    .from(qProduct)
+                    .innerJoin(qPm).on(qProduct.id.eq(qPm.productId).and(qPm.userId.eq(tokenInfo.getUserId())).and(qProduct.companyId.eq(companyId)))
+                    .innerJoin(qUser).on(qUser.id.eq(qProduct.createUserId))
+                    .where(qProduct.deleted.isFalse())).one();
+            return Mono.zip(productListMono, productTotalMono).map(t -> ResVo.success(t.getT2(), t.getT1()));
         }
     }
 
