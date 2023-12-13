@@ -66,7 +66,7 @@ public class ProductRest {
                     .where(qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false)))
                     .orderBy(qProduct.createTime.desc())
                     .offset(paging.getOffset()).limit(paging.getLimit())).all().collectList();
-            Mono<Long> productTotalMono = productRepository.query(query -> query.select(qProduct.count())
+            Mono<Long> productTotalMono = productRepository.query(query -> query.select(qProduct.id.count())
                     .from(qProduct)
                     .leftJoin(qUser).on(qProduct.createUserId.eq(qUser.id))
                     .where(qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false)))).one();
@@ -82,7 +82,7 @@ public class ProductRest {
                     .where(qProduct.deleted.isFalse())
                     .orderBy(qProduct.createTime.desc())
                     .offset(paging.getOffset()).limit(paging.getLimit())).all().collectList();
-            Mono<Long> productTotalMono = productRepository.query(query -> query.select(qProduct.count())
+            Mono<Long> productTotalMono = productRepository.query(query -> query.select(qProduct.id.count())
                     .from(qProduct)
                     .innerJoin(qPm).on(qProduct.id.eq(qPm.productId).and(qPm.userId.eq(tokenInfo.getUserId())).and(qProduct.companyId.eq(companyId)))
                     .innerJoin(qUser).on(qUser.id.eq(qProduct.createUserId))
