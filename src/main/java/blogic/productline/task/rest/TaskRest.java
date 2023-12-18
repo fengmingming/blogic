@@ -39,6 +39,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 public class TaskRest {
@@ -102,38 +103,65 @@ public class TaskRest {
                                     UserCurrentContext context, FindTasksReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyProductIdMono = productLineVerifier.verifyProductOrThrowException(companyId, productId);
+        QTask qTask = QTask.task;
+        QUser currentQUser = QUser.user;
+        QUser completeQUser = QUser.user;
+        QUser createQUser = QUser.user;
+        Predicate predicate = qTask.productId.eq(productId).and(qTask.deleted.eq(false));
+        if(StrUtil.isNotBlank(req.getTaskName())) {
+            predicate = ExpressionUtils.and(predicate, qTask.taskName.like(req.getTaskName()));
+        }
+        if(req.getTaskStatus() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.status.eq(req.getTaskStatus().getCode()));
+        }
+        if(req.getCurrentUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.currentUserId.eq(req.getCurrentUserId()));
+        }
+        if(req.getCompleteUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.completeUserId.eq(req.getCompleteUserId()));
+        }
+        if(req.getCreateUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.createUserId.eq(req.getCreateUserId()));
+        }
+        Predicate predicateFinal = predicate;
+        Mono<List<FindTasksRes>> records = taskRepository.query(q -> {
+            return q.select(Projections.bean(FindTasksRes.class, qTask, currentQUser.name.as("currentUserName"), completeQUser.name.as("completeUserName"), createQUser.name.as("createUserName")))
+                    .from(qTask)
+                    .leftJoin(currentQUser).on(qTask.currentUserId.eq(currentQUser.id))
+                    .leftJoin(completeQUser).on(qTask.completeUserId.eq(completeQUser.id))
+                    .leftJoin(createQUser).on(qTask.createUserId.eq(createQUser.id))
+                    .where(predicateFinal)
+                    .orderBy(qTask.createTime.desc())
+                    .offset(req.getOffset()).limit(req.getLimit());
+        }).all().collectList();
+        Mono<Long> total = taskRepository.query(q -> {
+            return q.select(qTask.id.count())
+                    .from(qTask)
+                    .leftJoin(currentQUser).on(qTask.currentUserId.eq(currentQUser.id))
+                    .leftJoin(completeQUser).on(qTask.completeUserId.eq(completeQUser.id))
+                    .leftJoin(createQUser).on(qTask.createUserId.eq(createQUser.id))
+                    .where(predicateFinal);
+        }).one();
+        return verifyProductIdMono.then(Mono.zip(total, records).map(it -> ResVo.success(it.getT1(), it.getT2())));
+    }
+
+    @GetMapping("/Companies/{companyId}/Products/{productId}/Tasks/{taskId}")
+    public Mono<ResVo<?>> findTasks(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("taskId")Long taskId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyTaskIdMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
         Mono<ResVo<?>> resVoMono = taskRepository.query(q -> {
             QTask qTask = QTask.task;
             QUser currentQUser = QUser.user;
             QUser completeQUser = QUser.user;
             QUser createQUser = QUser.user;
-            QBean<FindTasksRes> qBean = Projections.bean(FindTasksRes.class, qTask, currentQUser.name.as("currentUserName"), completeQUser.name.as("completeUserName"), createQUser.name.as("createUserName"));
-            Predicate predicate = qTask.productId.eq(productId).and(qTask.deleted.eq(false));
-            if(StrUtil.isNotBlank(req.getTaskName())) {
-                predicate = ExpressionUtils.and(predicate, qTask.taskName.like(req.getTaskName()));
-            }
-            if(req.getTaskStatus() != null) {
-                predicate = ExpressionUtils.and(predicate, qTask.status.eq(req.getTaskStatus().getCode()));
-            }
-            if(req.getCurrentUserId() != null) {
-                predicate = ExpressionUtils.and(predicate, qTask.currentUserId.eq(req.getCurrentUserId()));
-            }
-            if(req.getCompleteUserId() != null) {
-                predicate = ExpressionUtils.and(predicate, qTask.completeUserId.eq(req.getCompleteUserId()));
-            }
-            if(req.getCreateUserId() != null) {
-                predicate = ExpressionUtils.and(predicate, qTask.createUserId.eq(req.getCreateUserId()));
-            }
-            return q.select(qBean)
+            return q.select(Projections.bean(FindTasksRes.class, qTask, currentQUser.name.as("currentUserName"), completeQUser.name.as("completeUserName"), createQUser.name.as("createUserName")))
                     .from(qTask)
                     .leftJoin(currentQUser).on(qTask.currentUserId.eq(currentQUser.id))
                     .leftJoin(completeQUser).on(qTask.completeUserId.eq(completeQUser.id))
                     .leftJoin(createQUser).on(qTask.createUserId.eq(createQUser.id))
-                    .where(predicate)
-                    .orderBy(qTask.createTime.desc())
-                    .offset(req.getOffset()).limit(req.getLimit());
-        }).all().collectList().map(it -> ResVo.success(it));
-        return verifyProductIdMono.then(resVoMono);
+                    .where(qTask.id.eq(taskId));
+        }).one().map(it -> ResVo.success(it));
+        return verifyTaskIdMono.then(resVoMono);
     }
 
     @Setter

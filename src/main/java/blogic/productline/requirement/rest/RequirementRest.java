@@ -9,6 +9,7 @@ import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.requirement.domain.QRequirement;
+import blogic.productline.requirement.domain.Requirement;
 import blogic.productline.requirement.domain.RequirementRepository;
 import blogic.productline.requirement.domain.RequirementStatus;
 import blogic.productline.requirement.service.RequirementService;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 public class RequirementRest {
@@ -63,29 +65,36 @@ public class RequirementRest {
                                            FindRequirementReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Boolean> verifyProductBelongToCompanyMono = productRepository.verifyProductBelongToCompany(productId, companyId);
-        return verifyProductBelongToCompanyMono.flatMapMany(it -> {
+        return verifyProductBelongToCompanyMono.flatMap(it -> {
             if(it) {
-                return requirementRepository.query(query -> {
-                    QRequirement qRequirement = QRequirement.requirement;
-                    Predicate predicate = qRequirement.productId.eq(productId).and(qRequirement.deleted.eq(false));
-                    if(StrUtil.isNotBlank(req.getRequirementName())) {
-                        predicate = ExpressionUtils.and(predicate, qRequirement.requirementName.like(req.getRequirementName()));
-                    }
-                    if(req.getRequirementStatus() != null) {
-                        predicate = ExpressionUtils.and(predicate, qRequirement.requirementStatus.eq(req.getRequirementStatus().getCode()));
-                    }
-                    if(req.getCreateUserId() != null) {
-                        predicate = ExpressionUtils.and(predicate, qRequirement.createUserId.eq(tokenInfo.getUserId()));
-                    }
+                QRequirement qRequirement = QRequirement.requirement;
+                Predicate predicate = qRequirement.productId.eq(productId).and(qRequirement.deleted.eq(false));
+                if(StrUtil.isNotBlank(req.getRequirementName())) {
+                    predicate = ExpressionUtils.and(predicate, qRequirement.requirementName.like(req.getRequirementName()));
+                }
+                if(req.getRequirementStatus() != null) {
+                    predicate = ExpressionUtils.and(predicate, qRequirement.requirementStatus.eq(req.getRequirementStatus().getCode()));
+                }
+                if(req.getCreateUserId() != null) {
+                    predicate = ExpressionUtils.and(predicate, qRequirement.createUserId.eq(tokenInfo.getUserId()));
+                }
+                final Predicate predicateFinal = predicate;
+                Mono<List<Requirement>> records = requirementRepository.query(query -> {
                     return query.select(qRequirement)
                             .from(qRequirement)
-                            .where(predicate)
+                            .where(predicateFinal)
                             .limit(req.getLimit()).offset(req.getOffset());
-                }).all();
+                }).all().collectList();
+                Mono<Long> total = requirementRepository.query(query -> {
+                    return query.select(qRequirement.id.count())
+                            .from(qRequirement)
+                            .where(predicateFinal);
+                }).one();
+                return Mono.zip(total, records);
             }else {
                 return Mono.error(new ForbiddenAccessException());
             }
-        }).collectList().flatMap(it -> Mono.just(ResVo.success(it)));
+        }).map(it -> ResVo.success(it.getT1(), it.getT2()));
     }
 
     @Setter

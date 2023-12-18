@@ -1,11 +1,12 @@
 package blogic.productline.iteration.rest;
 
-import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.enums.json.DigitalizedEnumDeserializer;
+import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
+import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.iteration.domain.IterationStatusEnum;
 import blogic.productline.iteration.domain.QIteration;
 import blogic.productline.iteration.domain.repository.IterationRepository;
@@ -49,6 +50,8 @@ public class IterationRest {
     private ProductRepository productRepository;
     @Autowired
     private RequirementRepository requirementRepository;
+    @Autowired
+    private ProductLineVerifier productLineVerifier;
 
     @Setter
     @Getter
@@ -81,28 +84,52 @@ public class IterationRest {
         if(req.getCreateUserId() != null) {
             tokenInfo.equalsUserIdOrThrowException(req.getCreateUserId());
         }
-        return productRepository.verifyProductBelongToCompany(productId, companyId).flatMapMany(it -> {
+        return productRepository.verifyProductBelongToCompany(productId, companyId).flatMap(it -> {
             if(it) {
                 QIteration qi = QIteration.iteration;
                 QProduct qp = QProduct.product;
                 QUser qu = QUser.user;
-                return iterationRepository.query(q -> {
-                    Predicate predicate = qi.productId.eq(productId).and(qi.deleted.eq(false));
-                    if(req.getCreateUserId() != null) {
-                        predicate = ExpressionUtils.and(predicate, qi.createUserId.eq(req.getCreateUserId()));
-                    }
+                Predicate predicate = qi.productId.eq(productId).and(qi.deleted.eq(false));
+                if(req.getCreateUserId() != null) {
+                    predicate = ExpressionUtils.and(predicate, qi.createUserId.eq(req.getCreateUserId()));
+                }
+                Predicate predicateFinal = predicate;
+                Mono<List<FindIterationRes>> records = iterationRepository.query(q -> {
                     return q.select(Projections.bean(FindIterationRes.class, qi, qp.productName, qu.name.as("createUserName")))
                             .from(qi)
                             .innerJoin(qp).on(qi.productId.eq(qp.id))
                             .innerJoin(qu).on(qi.createUserId.eq(qu.id))
-                            .where(predicate)
+                            .where(predicateFinal)
                             .orderBy(qi.createTime.desc())
                             .limit(req.getLimit()).offset(req.getOffset());
-                }).all();
+                }).all().collectList();
+                Mono<Long> total = iterationRepository.query(q -> {
+                    return q.select(qi.id.count())
+                            .from(qi)
+                            .innerJoin(qp).on(qi.productId.eq(qp.id))
+                            .innerJoin(qu).on(qi.createUserId.eq(qu.id))
+                            .where(predicateFinal);
+                }).one();
+                return Mono.zip(total, records);
             }else {
                return Mono.error(new ForbiddenAccessException());
             }
-        }).collectList().flatMap(it -> Mono.just(ResVo.success(it)));
+        }).map(it -> ResVo.success(it.getT1(), it.getT2()));
+    }
+
+    @GetMapping("/Companies/{companyId}/Products/{productId}/Iteration/{iterationId}")
+    public Mono<ResVo<?>> findById(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("iterationId")Long iterationId) {
+        return productLineVerifier.verifyIterationOrThrowException(companyId, productId, iterationId)
+        .then(iterationRepository.query(query -> {
+            QIteration qi = QIteration.iteration;
+            QProduct qp = QProduct.product;
+            QUser qu = QUser.user;
+            return query.select(Projections.bean(FindIterationRes.class, qi, qp.productName, qu.name.as("createUserName")))
+                    .from(qi)
+                    .innerJoin(qp).on(qi.productId.eq(qp.id))
+                    .innerJoin(qu).on(qi.createUserId.eq(qu.id))
+                    .where(qi.id.eq(iterationId));
+        }).one().map(it -> ResVo.success(it)));
     }
 
     @Setter

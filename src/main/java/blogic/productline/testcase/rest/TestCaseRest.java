@@ -98,17 +98,42 @@ public class TestCaseRest {
         }
         Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, req.getRequirementId(),
                 req.getIterationId(), null);
-        return verifyMono.then(testCaseRepository.query(q -> {
-            QTestCase qTestCase = QTestCase.testCase;
-            QUser ownerUser = new QUser("ownerUser");
-            QUser createUser = new QUser("createUser");
-            Predicate predicate = qTestCase.productId.eq(productId).and(qTestCase.deleted.eq(false));
+        QTestCase qTestCase = QTestCase.testCase;
+        QUser ownerUser = new QUser("ownerUser");
+        QUser createUser = new QUser("createUser");
+        Predicate predicate = qTestCase.productId.eq(productId).and(qTestCase.deleted.eq(false));
+        Mono<List<FindTestCasesRes>> records = testCaseRepository.query(q -> {
             return q.select(Projections.bean(FindTestCasesRes.class, qTestCase, ownerUser.name.as("ownerUserName"), createUser.name.as("createUserName")))
                     .from(qTestCase)
                     .leftJoin(ownerUser).on(qTestCase.ownerUserId.eq(ownerUser.id))
                     .leftJoin(createUser).on(qTestCase.createUserId.eq(createUser.id))
-                    .where(predicate).orderBy(qTestCase.id.desc()).offset(req.getOffset()).limit(req.getLimit());
-        }).all().collectList().map(its -> ResVo.success(its)));
+                    .where(predicate).orderBy(qTestCase.id.desc())
+                    .offset(req.getOffset()).limit(req.getLimit());
+        }).all().collectList();
+        Mono<Long> total = testCaseRepository.query(q -> {
+            return q.select(qTestCase.id.count())
+                    .from(qTestCase)
+                    .leftJoin(ownerUser).on(qTestCase.ownerUserId.eq(ownerUser.id))
+                    .leftJoin(createUser).on(qTestCase.createUserId.eq(createUser.id))
+                    .where(predicate);
+        }).one();
+        return verifyMono.then(Mono.zip(total, records).map(it -> ResVo.success(it.getT1(), it.getT2())));
+    }
+
+    @GetMapping("/Companies/{companyId}/Products/{productId}/TestCases/{testCaseId}")
+    public Mono<ResVo<?>> findTestCases(@PathVariable("companyId") Long companyId, @PathVariable("productId") Long productId, @PathVariable("testCaseId") Long testCaseId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, null, null, testCaseId);
+        QTestCase qTestCase = QTestCase.testCase;
+        QUser ownerUser = new QUser("ownerUser");
+        QUser createUser = new QUser("createUser");
+        return verifyMono.then(testCaseRepository.query(q -> {
+            return q.select(Projections.bean(FindTestCasesRes.class, qTestCase, ownerUser.name.as("ownerUserName"), createUser.name.as("createUserName")))
+                    .from(qTestCase)
+                    .leftJoin(ownerUser).on(qTestCase.ownerUserId.eq(ownerUser.id))
+                    .leftJoin(createUser).on(qTestCase.createUserId.eq(createUser.id))
+                    .where(qTestCase.id.eq(testCaseId));
+        }).one().map(it -> ResVo.success(it)));
     }
 
     @Setter

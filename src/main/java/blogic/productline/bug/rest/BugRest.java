@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 public class BugRest {
@@ -86,36 +87,53 @@ public class BugRest {
     public Mono<ResVo<?>> findBugs(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
                                    TokenInfo tokenInfo, UserCurrentContext context, FindBugsReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
-        return productLineVerifier.verifyProductOrThrowException(companyId, productId).then(bugRepository.query(q -> {
-            QBug qBug = QBug.bug;
-            Predicate predicate = qBug.deleted.isFalse().and(qBug.productId.eq(productId));
-            if(req.getIterationId() != null) {
-                predicate = ExpressionUtils.and(predicate, qBug.iterationId.eq(req.getIterationId()));
-            }
-            if(req.getRequirementId() != null) {
-                predicate = ExpressionUtils.and(predicate, qBug.requirementId.eq(req.getRequirementId()));
-            }
-            if(req.getTestCaseId() != null) {
-                predicate = ExpressionUtils.and(predicate, qBug.testCaseId.eq(req.getTestCaseId()));
-            }
-            if(req.getStatus() != null) {
-                predicate = ExpressionUtils.and(predicate, qBug.status.eq(req.getStatus().getCode()));
-            }
-            if(req.getCreateUserId() != null) {
-                predicate = ExpressionUtils.and(predicate, qBug.createUserId.eq(req.getCreateUserId()));
-            }
-            if(req.getCurrentUserId() != null) {
-                predicate = ExpressionUtils.and(predicate, qBug.currentUserId.eq(req.getCurrentUserId()));
-            }
-            if(req.getFixUserId() != null) {
-                predicate = ExpressionUtils.and(predicate, qBug.fixUserId.eq(req.getFixUserId()));
-            }
-            if(StrUtil.isNotBlank(req.getTitle())) {
-                predicate = ExpressionUtils.and(predicate, qBug.title.like(req.getTitle()));
-            }
+        QBug qBug = QBug.bug;
+        Predicate predicate = qBug.deleted.isFalse().and(qBug.productId.eq(productId));
+        if(req.getIterationId() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.iterationId.eq(req.getIterationId()));
+        }
+        if(req.getRequirementId() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.requirementId.eq(req.getRequirementId()));
+        }
+        if(req.getTestCaseId() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.testCaseId.eq(req.getTestCaseId()));
+        }
+        if(req.getStatus() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.status.eq(req.getStatus().getCode()));
+        }
+        if(req.getCreateUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.createUserId.eq(req.getCreateUserId()));
+        }
+        if(req.getCurrentUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.currentUserId.eq(req.getCurrentUserId()));
+        }
+        if(req.getFixUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.fixUserId.eq(req.getFixUserId()));
+        }
+        if(StrUtil.isNotBlank(req.getTitle())) {
+            predicate = ExpressionUtils.and(predicate, qBug.title.like(req.getTitle()));
+        }
+        Predicate predicateFinal = predicate;
+        Mono<List<FindBugRes>> records = bugRepository.query(q -> {
             return q.select(Projections.bean(FindBugRes.class, qBug))
-                    .from(qBug).where(predicate).orderBy(qBug.id.desc()).offset(req.getOffset()).limit(req.getLimit());
-        }).all().collectList()).map(it -> ResVo.success(it));
+                    .from(qBug).where(predicateFinal).orderBy(qBug.id.desc()).offset(req.getOffset()).limit(req.getLimit());
+        }).all().collectList();
+        Mono<Long> total = bugRepository.query(q -> {
+            return q.select(qBug.id.count()).from(qBug).where(predicateFinal);
+        }).one();
+        return productLineVerifier.verifyProductOrThrowException(companyId, productId)
+                .then(Mono.zip(total, records).map(it -> ResVo.success(it.getT1(), it.getT2())));
+    }
+
+    @GetMapping("/Companies/{companyId}/Products/{productId}/Bugs/{bugId}")
+    public Mono<ResVo<?>> findBugs(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
+                                   @PathVariable("bugId")Long bugId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyBugOrThrowException(companyId, productId, null, null, null, bugId);
+        QBug qBug = QBug.bug;
+        return verifyMono.then(bugRepository.query(q -> {
+            return q.select(Projections.bean(FindBugRes.class, qBug)).from(qBug).where(qBug.id.eq(bugId));
+        }).one().map(it -> ResVo.success(it)));
     }
 
     @Setter

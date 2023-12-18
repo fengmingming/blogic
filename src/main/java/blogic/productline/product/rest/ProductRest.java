@@ -91,6 +91,13 @@ public class ProductRest {
         }
     }
 
+    @GetMapping("/Companies/{companyId}/Products/{productId}")
+    public Mono<ResVo<?>> findById(@PathVariable("companyId") Long companyId,@PathVariable("productId") Long productId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        QProduct qProduct = QProduct.product;
+        return productRepository.findOne(qProduct.id.eq(productId).eq(qProduct.companyId.eq(companyId))).map(it -> ResVo.success(it));
+    }
+
     @Setter
     @Getter
     public static class CreateProductReq {
