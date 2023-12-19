@@ -259,3 +259,19 @@ create table blogic.dict (
 )engine=INNODB default charset=utf8mb4 comment='字典表';
 
 
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('requirement_status', 10, '已确认', NOW()),
+      ('requirement_status', 20, '已规划', NOW()),
+      ('requirement_status', 30, '开发中', NOW()),
+      ('requirement_status', 40, '已实现', NOW()),
+      ('requirement_status', 50, '已发布', NOW()),
+      ('requirement_status', 60, '已关闭', NOW());
+
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('iteration_status', 10, '未开始', NOW()),
+      ('iteration_status', 20, '进行中', NOW()),
+      ('iteration_status', 30, '已完成', NOW());
+
+

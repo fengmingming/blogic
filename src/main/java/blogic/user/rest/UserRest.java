@@ -2,15 +2,20 @@ package blogic.user.rest;
 
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.ResVo;
+import blogic.core.rest.json.StringToArrayDeserializer;
 import blogic.core.security.JwtTokenUtil;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
-import blogic.user.domain.RoleEnum;
-import blogic.user.domain.User;
+import blogic.user.domain.*;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserCompanyDto;
 import blogic.user.service.UserService;
 import cn.hutool.core.map.MapUtil;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.Expressions;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +23,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -66,6 +73,33 @@ public class UserRest {
         command.setUserId(tokenInfo.getUserId());
         command.setName(req.getName());
         return userService.updateUser(command).map(it -> ResVo.success());
+    }
+
+    @Setter
+    @Getter
+    public static class FindUserRes {
+        private Long id;
+        private String phone;
+        private String name;
+        private LocalDateTime createTime;
+        private LocalDateTime updateTime;
+        private Boolean deleted;
+        @JsonSerialize(using = StringToArrayDeserializer.class)
+        private String departmentIds;
+    }
+
+    @GetMapping("/Users")
+    public Mono<ResVo<?>> findUsers(@RequestParam("companyId") Long companyId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        QUser qUser = QUser.user;
+        QUserCompanyRole qRole = QUserCompanyRole.userCompanyRole;
+        QUserDepartment qUserDept = QUserDepartment.userDepartment;
+        return userRepository.query(q -> q.select(Projections.bean(FindUserRes.class, qUser, Expressions.stringTemplate("group_concat({0})", qUserDept.departmentId).as("departmentIds")))
+                .from(qUser)
+                .innerJoin(qRole).on(qRole.userId.eq(qUser.id))
+                .leftJoin(qUserDept).on(qUserDept.userId.eq(qUser.id))
+                .where(qRole.companyId.eq(companyId))
+                .groupBy(qUser.id)).all().collectList().map(it -> ResVo.success(it));
     }
 
     @GetMapping("/Users/{userId}")
