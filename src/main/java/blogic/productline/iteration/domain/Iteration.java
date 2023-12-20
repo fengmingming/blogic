@@ -17,6 +17,7 @@ import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,9 +41,9 @@ public class Iteration extends ActiveRecord<Iteration, Long> {
     @Length(max = 254)
     private String name;
     @Column("scheduled_start_time")
-    private LocalDateTime scheduledStartTime;
+    private LocalDate scheduledStartTime;
     @Column("scheduled_end_time")
-    private LocalDateTime scheduledEndTime;
+    private LocalDate scheduledEndTime;
     @Column("status")
     @NotNull
     private Integer status;

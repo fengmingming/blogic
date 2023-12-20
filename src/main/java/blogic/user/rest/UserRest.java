@@ -1,21 +1,29 @@
 package blogic.user.rest;
 
+import blogic.company.domain.Department;
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.ResVo;
-import blogic.core.rest.json.StringToArrayDeserializer;
 import blogic.core.security.JwtTokenUtil;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
-import blogic.user.domain.*;
+import blogic.productline.iteration.domain.QIterationMember;
+import blogic.productline.iteration.domain.repository.IterationMemberRepository;
+import blogic.productline.product.domain.QProductMember;
+import blogic.productline.product.domain.repository.ProductMemberRepository;
+import blogic.user.domain.QUser;
+import blogic.user.domain.QUserCompanyRole;
+import blogic.user.domain.RoleEnum;
+import blogic.user.domain.User;
+import blogic.user.domain.repository.UserCompanyRoleRepository;
+import blogic.user.domain.repository.UserDepartmentRepository;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserCompanyDto;
 import blogic.user.service.UserService;
 import cn.hutool.core.map.MapUtil;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.sql.SQLQuery;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -23,12 +31,11 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -39,6 +46,14 @@ public class UserRest {
     private UserRepository userRepository;
     @Autowired
     private UserService userService;
+    @Autowired
+    private UserCompanyRoleRepository userCompanyRoleRepository;
+    @Autowired
+    private UserDepartmentRepository userDepartmentRepository;
+    @Autowired
+    private IterationMemberRepository iterationMemberRepository;
+    @Autowired
+    private ProductMemberRepository productMemberRepository;
 
     @Setter
     @Getter
@@ -75,31 +90,56 @@ public class UserRest {
         return userService.updateUser(command).map(it -> ResVo.success());
     }
 
+    @Getter
+    @Setter
+    public static class FindUserReq {
+        @NotNull
+        private Long companyId;
+        private Long productId;
+        private Long iterationId;
+        private Integer pageNum;
+        private Integer pageSize;
+    }
+
     @Setter
     @Getter
     public static class FindUserRes {
         private Long id;
         private String phone;
         private String name;
-        private LocalDateTime createTime;
-        private LocalDateTime updateTime;
-        private Boolean deleted;
-        @JsonSerialize(using = StringToArrayDeserializer.class)
-        private String departmentIds;
+        private List<Department> departments;
     }
 
     @GetMapping("/Users")
-    public Mono<ResVo<?>> findUsers(@RequestParam("companyId") Long companyId, UserCurrentContext context) {
-        context.equalsCompanyIdOrThrowException(companyId);
+    public Mono<ResVo<?>> findUsers(UserCurrentContext context, FindUserReq req) {
+        context.equalsCompanyIdOrThrowException(req.getCompanyId());
+        Mono<List<Long>> userIdsMono = Mono.just(Collections.emptyList());
+        if(req.getIterationId() != null) {
+            QIterationMember qIterationMember = QIterationMember.iterationMember;
+            userIdsMono = iterationMemberRepository.query(q -> q.select(qIterationMember.userId).from(qIterationMember).where(qIterationMember.iterationId.eq(req.getIterationId()))).all().collectList();
+        }else if(req.getProductId() != null) {
+            QProductMember qProductMember = QProductMember.productMember;
+            userIdsMono = productMemberRepository.query(q -> q.select(qProductMember.userId).from(qProductMember).where(qProductMember.productId.eq(req.getProductId()))).all().collectList();
+        }
         QUser qUser = QUser.user;
-        QUserCompanyRole qRole = QUserCompanyRole.userCompanyRole;
-        QUserDepartment qUserDept = QUserDepartment.userDepartment;
-        return userRepository.query(q -> q.select(Projections.bean(FindUserRes.class, qUser, Expressions.stringTemplate("group_concat({0})", qUserDept.departmentId).as("departmentIds")))
-                .from(qUser)
-                .innerJoin(qRole).on(qRole.userId.eq(qUser.id))
-                .leftJoin(qUserDept).on(qUserDept.userId.eq(qUser.id))
-                .where(qRole.companyId.eq(companyId))
-                .groupBy(qUser.id)).all().collectList().map(it -> ResVo.success(it));
+        QUserCompanyRole qCR = QUserCompanyRole.userCompanyRole;
+        return userIdsMono.flatMap(userIds -> {
+            return userRepository.query(q -> {
+                Predicate predicate = qUser.deleted.isFalse();
+                if(userIds.size() > 0) {
+                    predicate = ExpressionUtils.and(predicate, qUser.id.in(userIds));
+                }
+                SQLQuery query = q.select(Projections.bean(FindUserRes.class, qUser.id, qUser.name, qUser.phone))
+                        .distinct()
+                        .from(qUser).innerJoin(qCR).on(qCR.userId.eq(qUser.id).and(qCR.companyId.eq(req.getCompanyId())))
+                        .where(predicate);
+                if(req.getPageNum() != null && req.getPageSize() != null) {
+                    long offset = (req.getPageNum() - 1) * req.getPageSize();
+                    query.offset(offset).limit(req.getPageSize().longValue());
+                }
+                return query;
+            }).all().collectList();
+        }).map(it -> ResVo.success(it));
     }
 
     @GetMapping("/Users/{userId}")

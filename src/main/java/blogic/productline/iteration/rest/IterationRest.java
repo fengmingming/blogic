@@ -33,6 +33,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -142,9 +143,9 @@ public class IterationRest {
         @Length(max = 254)
         private String name;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-        private LocalDateTime scheduledStartTime;
+        private LocalDate scheduledStartTime;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-        private LocalDateTime scheduledEndTime;
+        private LocalDate scheduledEndTime;
         private List<Long> userIds;
         private List<Long> requirementIds;
     }
@@ -197,8 +198,8 @@ public class IterationRest {
         @NotNull
         @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
         private IterationStatusEnum iterationStatus;
-        private LocalDateTime scheduledStartTime;
-        private LocalDateTime scheduledEndTime;
+        private LocalDate scheduledStartTime;
+        private LocalDate scheduledEndTime;
         @NotNull
         @Size(min = 1)
         private List<Long> userIds;
