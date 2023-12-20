@@ -107,7 +107,6 @@ public class UserRest {
         private Long id;
         private String phone;
         private String name;
-        private List<Department> departments;
     }
 
     @GetMapping("/Users")
