@@ -68,8 +68,8 @@ public class IterationRest {
         private String productName;
         private String versionCode;
         private String name;
-        private LocalDateTime scheduledStartTime;
-        private LocalDateTime scheduledEndTime;
+        private LocalDate scheduledStartTime;
+        private LocalDate scheduledEndTime;
         private Integer status;
         private Long createUserId;
         @Column("createUserName")
@@ -142,9 +142,9 @@ public class IterationRest {
         @NotNull
         @Length(max = 254)
         private String name;
-        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        @JsonFormat(pattern = "yyyy-MM-dd")
         private LocalDate scheduledStartTime;
-        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        @JsonFormat(pattern = "yyyy-MM-dd")
         private LocalDate scheduledEndTime;
         private List<Long> userIds;
         private List<Long> requirementIds;

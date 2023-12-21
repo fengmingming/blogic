@@ -9,7 +9,7 @@ import lombok.*;
 @Builder
 public class Paging {
     private int pageNum = 1;
-    private int pageSize = 100;
+    private int pageSize = 1000;
 
     public long getLimit() {
         return this.pageSize;

@@ -274,4 +274,23 @@ INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
       ('iteration_status', 20, '进行中', NOW()),
       ('iteration_status', 30, '已完成', NOW());
 
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('task_priority', 1, '1', NOW()),
+      ('task_priority', 2, '2', NOW()),
+      ('task_priority', 3, '3', NOW()),
+      ('task_priority', 4, '4', NOW());
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('task_status', 10, '未开始', NOW()),
+      ('task_status', 20, '进行中', NOW()),
+      ('task_status', 30, '已完成', NOW()),
+      ('task_status', 40, '已取消', NOW());
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('testcase_status', 10, '未开始', NOW()),
+      ('testcase_status', 20, '测试中', NOW()),
+      ('testcase_status', 30, '被阻塞', NOW()),
+      ('testcase_status', 40, '已完成', NOW());
+
 
