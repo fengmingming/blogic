@@ -17,6 +17,7 @@ import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
 import blogic.productline.task.service.TaskService;
 import blogic.user.domain.QUser;
+import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -39,7 +40,12 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 public class TaskRest {
@@ -52,6 +58,8 @@ public class TaskRest {
     private ProductLineVerifier productLineVerifier;
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private UserRepository userRepository;
 
     @InitBinder
     public void initBinder(WebDataBinder dataBinder) {
@@ -89,13 +97,14 @@ public class TaskRest {
         private LocalDateTime finalTime;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime completeTime;
-        private Integer allTime;
+        private Integer overallTime;
         private Integer consumeTime;
-        private String createUserId;
+        private Long createUserId;
         @Column("createUserName")
         private String createUserName;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime createTime;
+        private Integer priority;
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/Tasks")
@@ -134,6 +143,24 @@ public class TaskRest {
                     .orderBy(qTask.createTime.desc())
                     .offset(req.getOffset()).limit(req.getLimit());
         }).all().collectList();
+        Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setUserIdFunc = (tasks) -> {
+            Set<Long> userIdSet = new HashSet<>();
+            userIdSet.addAll(tasks.stream().map(it -> it.getCreateUserId()).collect(Collectors.toSet()));
+            userIdSet.addAll(tasks.stream().map(it -> it.getCurrentUserId()).filter(it -> it != null).collect(Collectors.toSet()));
+            userIdSet.addAll(tasks.stream().map(it -> it.getCompleteUserId()).filter(it -> it != null).collect(Collectors.toSet()));
+            if(userIdSet.size() > 0) {
+                return userRepository.findByIdsAndToMap(userIdSet).map(it -> {
+                    tasks.stream().forEach(task -> {
+                        task.setCreateUserName(it.get(task.getCreateUserId()));
+                        task.setCurrentUserName(it.get(task.getCurrentUserId()));
+                        task.setCompleteUserName(it.get(task.getCompleteUserId()));
+                    });
+                    return tasks;
+                });
+            }else {
+                return Mono.just(tasks);
+            }
+        };
         Mono<Long> total = taskRepository.query(q -> {
             return q.select(qTask.id.count())
                     .from(qTask)
@@ -142,7 +169,7 @@ public class TaskRest {
                     .leftJoin(createQUser).on(qTask.createUserId.eq(createQUser.id))
                     .where(predicateFinal);
         }).one();
-        return verifyProductIdMono.then(Mono.zip(total, records).map(it -> ResVo.success(it.getT1(), it.getT2())));
+        return verifyProductIdMono.then(Mono.zip(total, records.flatMap(setUserIdFunc)).map(it -> ResVo.success(it.getT1(), it.getT2())));
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/Tasks/{taskId}")

@@ -78,7 +78,7 @@ public class IterationService {
         @Length(max = 254)
         private String name;
         @NotNull
-        private IterationStatusEnum iterationStatus;
+        private IterationStatusEnum status;
         private LocalDate scheduledStartTime;
         private LocalDate scheduledEndTime;
         @NotNull
@@ -95,7 +95,7 @@ public class IterationService {
             it.setName(command.getName());
             it.setScheduledStartTime(command.getScheduledStartTime());
             it.setScheduledEndTime(command.getScheduledEndTime());
-            it.setStatusEnum(command.getIterationStatus());
+            it.setStatusEnum(command.getStatus());
             return it.save().then(it.saveMembers(command.getUserIds())).then(it.saveRequirements(command.getRequirementIds()));
         });
     }

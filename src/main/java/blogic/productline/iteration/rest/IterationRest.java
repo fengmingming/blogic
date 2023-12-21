@@ -9,6 +9,8 @@ import blogic.core.security.UserCurrentContext;
 import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.iteration.domain.IterationStatusEnum;
 import blogic.productline.iteration.domain.QIteration;
+import blogic.productline.iteration.domain.QIterationMember;
+import blogic.productline.iteration.domain.repository.IterationMemberRepository;
 import blogic.productline.iteration.domain.repository.IterationRepository;
 import blogic.productline.iteration.service.IterationService;
 import blogic.productline.product.domain.QProduct;
@@ -45,6 +47,8 @@ public class IterationRest {
 
     @Autowired
     private IterationRepository iterationRepository;
+    @Autowired
+    private IterationMemberRepository iterationMemberRepository;
     @Autowired
     private IterationService iterationService;
     @Autowired
@@ -118,19 +122,31 @@ public class IterationRest {
         }).map(it -> ResVo.success(it.getT1(), it.getT2()));
     }
 
+    @Setter
+    @Getter
+    public static class FindOneIterationRes extends FindIterationRes {
+        private List<Long> userIds;
+    }
+
     @GetMapping("/Companies/{companyId}/Products/{productId}/Iteration/{iterationId}")
     public Mono<ResVo<?>> findById(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("iterationId")Long iterationId) {
-        return productLineVerifier.verifyIterationOrThrowException(companyId, productId, iterationId)
-        .then(iterationRepository.query(query -> {
+        Mono<FindOneIterationRes> iterationMono = iterationRepository.query(query -> {
             QIteration qi = QIteration.iteration;
             QProduct qp = QProduct.product;
             QUser qu = QUser.user;
-            return query.select(Projections.bean(FindIterationRes.class, qi, qp.productName, qu.name.as("createUserName")))
+            return query.select(Projections.bean(FindOneIterationRes.class, qi, qp.productName, qu.name.as("createUserName")))
                     .from(qi)
                     .innerJoin(qp).on(qi.productId.eq(qp.id))
                     .innerJoin(qu).on(qi.createUserId.eq(qu.id))
                     .where(qi.id.eq(iterationId));
-        }).one().map(it -> ResVo.success(it)));
+        }).one();
+        QIterationMember qIM = QIterationMember.iterationMember;
+        Mono<List<Long>> userIds = iterationMemberRepository.query(q -> q.select(qIM.userId).from(qIM).where(qIM.iterationId.eq(iterationId))).all().collectList();
+        return productLineVerifier.verifyIterationOrThrowException(companyId, productId, iterationId)
+        .then(Mono.zip(iterationMono, userIds).map(it -> {
+            it.getT1().setUserIds(it.getT2());
+            return ResVo.success(it.getT1());
+        }));
     }
 
     @Setter
@@ -197,7 +213,7 @@ public class IterationRest {
         private String name;
         @NotNull
         @JsonDeserialize(using = DigitalizedEnumDeserializer.class)
-        private IterationStatusEnum iterationStatus;
+        private IterationStatusEnum status;
         private LocalDate scheduledStartTime;
         private LocalDate scheduledEndTime;
         @NotNull
@@ -220,9 +236,12 @@ public class IterationRest {
                 if(CollectionUtil.isNotEmpty(req.getUserIds())) {
                     usersMono = usersMono.map(its -> new ArrayList<>(CollectionUtil.intersection(its, req.getUserIds())));
                 }
-                Mono<List<Long>> requirementsMono = requirementRepository.query(q -> q.select(QRequirement.requirement.id).from(QRequirement.requirement)
-                                .where(QRequirement.requirement.id.in(req.getRequirementIds()).and(QRequirement.requirement.productId.eq(productId))))
-                        .all().collectList();
+                Mono<List<Long>> requirementsMono = Mono.just(Collections.emptyList());
+                if(CollectionUtil.isNotEmpty(req.getRequirementIds())) {
+                    requirementsMono = requirementRepository.query(q -> q.select(QRequirement.requirement.id).from(QRequirement.requirement)
+                                    .where(QRequirement.requirement.id.in(req.getRequirementIds()).and(QRequirement.requirement.productId.eq(productId))))
+                            .all().collectList();
+                }
                 return Mono.zip(usersMono, requirementsMono).flatMap(tuple2 -> {
                     IterationService.UpdateIterationCommand command = new IterationService.UpdateIterationCommand();
                     command.setIterationId(iterationId);
@@ -232,7 +251,7 @@ public class IterationRest {
                     command.setScheduledEndTime(req.getScheduledEndTime());
                     command.setUserIds(tuple2.getT1());
                     command.setRequirementIds(tuple2.getT2());
-                    command.setIterationStatus(req.getIterationStatus());
+                    command.setStatus(req.getStatus());
                     return iterationService.updateIteration(command);
                 });
             })).then(Mono.just(ResVo.success()));
