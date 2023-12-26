@@ -3,9 +3,14 @@ package blogic.productline.bug.domain.repository;
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.productline.bug.domain.Bug;
 import blogic.productline.bug.domain.QBug;
+import blogic.productline.task.domain.Task;
 import com.infobip.spring.data.r2dbc.QuerydslR2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Repository
 public interface BugRepository extends QuerydslR2dbcRepository<Bug, Long> {
@@ -24,6 +29,10 @@ public interface BugRepository extends QuerydslR2dbcRepository<Bug, Long> {
                 return Mono.error(new ForbiddenAccessException());
             }
         });
+    }
+
+    default Mono<Map<Long, String>> findByIdsAndToMap(Collection<Long> ids) {
+        return findAllById(ids).collectList().map(its -> its.stream().collect(Collectors.toMap(Bug::getId, Bug::getTitle)));
     }
 
 }

@@ -75,6 +75,7 @@ public class RequirementService {
                     it.setRequirementSources(command.getRequirementSources());
                     it.setRequirementDesc(command.getRequirementDesc());
                     it.setRequirementStatusEnum(command.getRequirementStatus());
+                    it.setUpdateTime(LocalDateTime.now());
                 }).flatMap(it -> {
                     return requirementRepository.save(it);
                 }).then();

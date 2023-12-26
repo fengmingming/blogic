@@ -1,5 +1,6 @@
 package blogic.productline.testcase.rest;
 
+import blogic.core.enums.DigitalizedEnumPropertyEditor;
 import blogic.core.enums.json.DigitalizedEnumDeserializer;
 import blogic.core.exception.IllegalArgumentException;
 import blogic.core.rest.Paging;
@@ -9,16 +10,22 @@ import blogic.core.security.UserCurrentContext;
 import blogic.core.validation.DTOLogicConsistencyVerifier;
 import blogic.core.validation.DTOLogicValid;
 import blogic.productline.infras.ProductLineVerifier;
+import blogic.productline.iteration.domain.Iteration;
+import blogic.productline.iteration.domain.repository.IterationRepository;
+import blogic.productline.requirement.domain.Requirement;
+import blogic.productline.requirement.domain.RequirementRepository;
 import blogic.productline.testcase.domain.QTestCase;
 import blogic.productline.testcase.domain.TestCaseStatusEnum;
 import blogic.productline.testcase.domain.TestCaseStep;
 import blogic.productline.testcase.domain.repository.TestCaseRepository;
 import blogic.productline.testcase.service.TestCaseService;
-import blogic.user.domain.QUser;
+import blogic.user.domain.User;
+import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.lang.TypeReference;
 import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
@@ -30,12 +37,14 @@ import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 public class TestCaseRest {
@@ -46,6 +55,12 @@ public class TestCaseRest {
     private ProductLineVerifier productLineVerifier;
     @Autowired
     private TestCaseService testCaseService;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private IterationRepository iterationRepository;
+    @Autowired
+    private RequirementRepository requirementRepository;
 
     @Setter
     @Getter
@@ -63,27 +78,38 @@ public class TestCaseRest {
     public static class FindTestCasesRes {
         private Long id;
         private Long iterationId;
+        private String iterationName;
         private Long requirementId;
+        private String requirementName;
         private Long productId;
         private String title;
         private Integer priority;
         private String precondition;
+        private Long ownerUserId;
         @Column("ownerUserName")
         private String ownerUserName;
         private Boolean smoke;
         private Integer status;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime completeTime;
+        private Long createUserId;
         @Column("createUserName")
         private String createUserName;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime createTime;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime updateTime;
         private String steps;
 
         public Collection<TestCaseStep> getSteps() {
             return JSONUtil.toBean(this.steps, new TypeReference<List<TestCaseStep>>() {}, false);
         }
 
+    }
+
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        binder.registerCustomEditor(TestCaseStatusEnum.class, new DigitalizedEnumPropertyEditor(TestCaseStatusEnum.class));
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/TestCases")
@@ -99,25 +125,65 @@ public class TestCaseRest {
         Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, req.getRequirementId(),
                 req.getIterationId(), null);
         QTestCase qTestCase = QTestCase.testCase;
-        QUser ownerUser = new QUser("ownerUser");
-        QUser createUser = new QUser("createUser");
         Predicate predicate = qTestCase.productId.eq(productId).and(qTestCase.deleted.eq(false));
+        if(req.getStatus() != null) {
+            predicate = ExpressionUtils.and(predicate, qTestCase.status.eq(req.getStatus().getCode()));
+        }
+        Predicate predicateFinal = predicate;
         Mono<List<FindTestCasesRes>> records = testCaseRepository.query(q -> {
-            return q.select(Projections.bean(FindTestCasesRes.class, qTestCase, ownerUser.name.as("ownerUserName"), createUser.name.as("createUserName")))
+            return q.select(Projections.bean(FindTestCasesRes.class, qTestCase))
                     .from(qTestCase)
-                    .leftJoin(ownerUser).on(qTestCase.ownerUserId.eq(ownerUser.id))
-                    .leftJoin(createUser).on(qTestCase.createUserId.eq(createUser.id))
-                    .where(predicate).orderBy(qTestCase.id.desc())
+                    .where(predicateFinal).orderBy(qTestCase.id.desc())
                     .offset(req.getOffset()).limit(req.getLimit());
         }).all().collectList();
         Mono<Long> total = testCaseRepository.query(q -> {
             return q.select(qTestCase.id.count())
                     .from(qTestCase)
-                    .leftJoin(ownerUser).on(qTestCase.ownerUserId.eq(ownerUser.id))
-                    .leftJoin(createUser).on(qTestCase.createUserId.eq(createUser.id))
-                    .where(predicate);
+                    .where(predicateFinal);
         }).one();
-        return verifyMono.then(Mono.zip(total, records).map(it -> ResVo.success(it.getT1(), it.getT2())));
+        Function<List<FindTestCasesRes>, Mono<List<FindTestCasesRes>>> setUserMono = (its) -> {
+            Set<Long> userIds = new HashSet<>();
+            userIds.addAll(its.stream().map(it -> it.getOwnerUserId()).filter(it -> it != null).collect(Collectors.toSet()));
+            userIds.addAll(its.stream().map(it -> it.getCreateUserId()).filter(it -> it != null).collect(Collectors.toSet()));
+            if(userIds.size() > 0) {
+                return userRepository.findAllById(userIds).collectList().map(users -> {
+                    Map<Long, String> userMap = users.stream().collect(Collectors.toMap(User::getId, User::getName));
+                    its.stream().forEach(it -> {
+                        it.setOwnerUserName(userMap.get(it.getOwnerUserId()));
+                        it.setCreateUserName(userMap.get(it.getCreateUserId()));
+                    });
+                    return its;
+                });
+            }
+            return Mono.just(its);
+        };
+        Function<List<FindTestCasesRes>, Mono<List<FindTestCasesRes>>> setRequirementMono = (its) -> {
+            Collection<Long> requirementIds = its.stream().map(it -> it.getRequirementId()).filter(it -> it != null).collect(Collectors.toSet());
+            if(requirementIds.size() > 0) {
+                return requirementRepository.findAllById(requirementIds).collectList().map(requirements -> {
+                    Map<Long, String> requirementMap = requirements.stream().collect(Collectors.toMap(Requirement::getId, Requirement::getRequirementName));
+                    its.stream().forEach(it -> {
+                        it.setRequirementName(requirementMap.get(it.getRequirementId()));
+                    });
+                    return its;
+                });
+            }
+            return Mono.just(its);
+        };
+        Function<List<FindTestCasesRes>, Mono<List<FindTestCasesRes>>> setIterationMono = (its) -> {
+            Collection<Long> iterationIds = its.stream().map(it -> it.getIterationId()).filter(it -> it != null).collect(Collectors.toSet());
+            if(iterationIds.size() > 0) {
+                return iterationRepository.findAllById(iterationIds).collectList().map(iteration -> {
+                    Map<Long, String> iterationMap = iteration.stream().collect(Collectors.toMap(Iteration::getId, Iteration::getName));
+                    its.stream().forEach(it -> {
+                        it.setIterationName(iterationMap.get(it.getIterationId()));
+                    });
+                    return its;
+                });
+            }
+            return Mono.just(its);
+        };
+        return verifyMono.then(Mono.zip(total, records.flatMap(setUserMono).flatMap(setRequirementMono).flatMap(setIterationMono)).map(it -> ResVo.success(it.getT1(), it.getT2())));
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/TestCases/{testCaseId}")
@@ -125,13 +191,9 @@ public class TestCaseRest {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, null, null, testCaseId);
         QTestCase qTestCase = QTestCase.testCase;
-        QUser ownerUser = new QUser("ownerUser");
-        QUser createUser = new QUser("createUser");
         return verifyMono.then(testCaseRepository.query(q -> {
-            return q.select(Projections.bean(FindTestCasesRes.class, qTestCase, ownerUser.name.as("ownerUserName"), createUser.name.as("createUserName")))
+            return q.select(Projections.bean(FindTestCasesRes.class, qTestCase))
                     .from(qTestCase)
-                    .leftJoin(ownerUser).on(qTestCase.ownerUserId.eq(ownerUser.id))
-                    .leftJoin(createUser).on(qTestCase.createUserId.eq(createUser.id))
                     .where(qTestCase.id.eq(testCaseId));
         }).one().map(it -> ResVo.success(it)));
     }

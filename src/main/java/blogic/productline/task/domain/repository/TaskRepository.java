@@ -1,11 +1,16 @@
 package blogic.productline.task.domain.repository;
 
 import blogic.core.exception.ForbiddenAccessException;
+import blogic.productline.iteration.domain.Iteration;
 import blogic.productline.task.domain.QTask;
 import blogic.productline.task.domain.Task;
 import com.infobip.spring.data.r2dbc.QuerydslR2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Repository
 public interface TaskRepository extends QuerydslR2dbcRepository<Task, Long> {
@@ -24,6 +29,10 @@ public interface TaskRepository extends QuerydslR2dbcRepository<Task, Long> {
                 return Mono.error(new ForbiddenAccessException());
             }
         });
+    }
+
+    default Mono<Map<Long, String>> findByIdsAndToMap(Collection<Long> ids) {
+        return findAllById(ids).collectList().map(its -> its.stream().collect(Collectors.toMap(Task::getId, Task::getTaskName)));
     }
 
 }

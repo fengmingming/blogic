@@ -11,12 +11,13 @@ import blogic.core.security.UserCurrentContext;
 import blogic.core.validation.DTOLogicConsistencyVerifier;
 import blogic.core.validation.DTOLogicValid;
 import blogic.productline.infras.ProductLineVerifier;
+import blogic.productline.iteration.domain.repository.IterationRepository;
 import blogic.productline.product.domain.repository.ProductRepository;
+import blogic.productline.requirement.domain.RequirementRepository;
 import blogic.productline.task.domain.QTask;
 import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
 import blogic.productline.task.service.TaskService;
-import blogic.user.domain.QUser;
 import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -24,7 +25,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.QBean;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -60,6 +60,10 @@ public class TaskRest {
     private ProductRepository productRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private IterationRepository iterationRepository;
+    @Autowired
+    private RequirementRepository requirementRepository;
 
     @InitBinder
     public void initBinder(WebDataBinder dataBinder) {
@@ -82,6 +86,8 @@ public class TaskRest {
         private Long id;
         private Long iterationId;
         private String iterationName;
+        private Long requirementId;
+        private String requirementName;
         private Long productId;
         private String taskName;
         private Integer status;
@@ -104,6 +110,8 @@ public class TaskRest {
         private String createUserName;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime createTime;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime updateTime;
         private Integer priority;
     }
 
@@ -113,9 +121,6 @@ public class TaskRest {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyProductIdMono = productLineVerifier.verifyProductOrThrowException(companyId, productId);
         QTask qTask = QTask.task;
-        QUser currentQUser = QUser.user;
-        QUser completeQUser = QUser.user;
-        QUser createQUser = QUser.user;
         Predicate predicate = qTask.productId.eq(productId).and(qTask.deleted.eq(false));
         if(StrUtil.isNotBlank(req.getTaskName())) {
             predicate = ExpressionUtils.and(predicate, qTask.taskName.like(req.getTaskName()));
@@ -134,11 +139,8 @@ public class TaskRest {
         }
         Predicate predicateFinal = predicate;
         Mono<List<FindTasksRes>> records = taskRepository.query(q -> {
-            return q.select(Projections.bean(FindTasksRes.class, qTask, currentQUser.name.as("currentUserName"), completeQUser.name.as("completeUserName"), createQUser.name.as("createUserName")))
+            return q.select(Projections.bean(FindTasksRes.class, qTask))
                     .from(qTask)
-                    .leftJoin(currentQUser).on(qTask.currentUserId.eq(currentQUser.id))
-                    .leftJoin(completeQUser).on(qTask.completeUserId.eq(completeQUser.id))
-                    .leftJoin(createQUser).on(qTask.createUserId.eq(createQUser.id))
                     .where(predicateFinal)
                     .orderBy(qTask.createTime.desc())
                     .offset(req.getOffset()).limit(req.getLimit());
@@ -161,33 +163,83 @@ public class TaskRest {
                 return Mono.just(tasks);
             }
         };
+        Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setIteration = (tasks) -> {
+            Set<Long> ids = tasks.stream().map(it -> it.getIterationId()).collect(Collectors.toSet());
+            if(ids.size() > 0) {
+                return iterationRepository.findByIdsAndToMap(ids).map(map -> {
+                    tasks.stream().forEach(task -> {
+                        task.setIterationName(map.get(task.getIterationId()));
+                    });
+                    return tasks;
+                });
+            }
+            return Mono.just(tasks);
+        };
+        Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setRequirement = (tasks) -> {
+            Set<Long> ids = tasks.stream().map(it -> it.getRequirementId()).collect(Collectors.toSet());
+            if(ids.size() > 0) {
+                return requirementRepository.findByIdsAndToMap(ids).map(map -> {
+                    tasks.stream().forEach(task -> {
+                        task.setRequirementName(map.get(task.getRequirementId()));
+                    });
+                    return tasks;
+                });
+            }
+            return Mono.just(tasks);
+        };
         Mono<Long> total = taskRepository.query(q -> {
             return q.select(qTask.id.count())
                     .from(qTask)
-                    .leftJoin(currentQUser).on(qTask.currentUserId.eq(currentQUser.id))
-                    .leftJoin(completeQUser).on(qTask.completeUserId.eq(completeQUser.id))
-                    .leftJoin(createQUser).on(qTask.createUserId.eq(createQUser.id))
                     .where(predicateFinal);
         }).one();
-        return verifyProductIdMono.then(Mono.zip(total, records.flatMap(setUserIdFunc)).map(it -> ResVo.success(it.getT1(), it.getT2())));
+        return verifyProductIdMono.then(Mono.zip(total, records.flatMap(setUserIdFunc).flatMap(setIteration).flatMap(setRequirement))
+                .map(it -> ResVo.success(it.getT1(), it.getT2())));
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/Tasks/{taskId}")
-    public Mono<ResVo<?>> findTasks(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("taskId")Long taskId, UserCurrentContext context) {
+    public Mono<ResVo<FindTasksRes>> findTasks(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("taskId")Long taskId, UserCurrentContext context) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyTaskIdMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
-        Mono<ResVo<?>> resVoMono = taskRepository.query(q -> {
+        Function<FindTasksRes, Mono<FindTasksRes>> setUserIdMono = (task) -> {
+            List<Long> userIds = new ArrayList<>();
+            userIds.add(task.getCreateUserId());
+            userIds.add(task.getCurrentUserId());
+            userIds.add(task.getCompleteUserId());
+            userIds = userIds.stream().filter(it -> it != null).collect(Collectors.toList());
+            if(userIds.size() > 0) {
+                return userRepository.findByIdsAndToMap(userIds).map(map -> {
+                    task.setCreateUserName(map.get(task.getCreateUserId()));
+                    task.setCurrentUserName(map.get(task.getCurrentUserId()));
+                    task.setCompleteUserName(map.get(task.getCompleteUserId()));
+                    return task;
+                });
+            }
+            return Mono.just(task);
+        };
+        Function<FindTasksRes, Mono<FindTasksRes>> setIteration = (task) -> {
+            if(task.getIterationId() != null) {
+                return iterationRepository.findById(task.getIterationId()).map(iteration -> {
+                    task.setIterationName(iteration.getName());
+                    return task;
+                });
+            }
+            return Mono.just(task);
+        };
+        Function<FindTasksRes, Mono<FindTasksRes>> setRequirement = (task) -> {
+            if(task.getRequirementId() != null) {
+                return requirementRepository.findById(task.getRequirementId()).map(requirement -> {
+                    task.setRequirementName(requirement.getRequirementName());
+                    return task;
+                });
+            }
+            return Mono.just(task);
+        };
+        Mono<ResVo<FindTasksRes>> resVoMono = taskRepository.query(q -> {
             QTask qTask = QTask.task;
-            QUser currentQUser = QUser.user;
-            QUser completeQUser = QUser.user;
-            QUser createQUser = QUser.user;
-            return q.select(Projections.bean(FindTasksRes.class, qTask, currentQUser.name.as("currentUserName"), completeQUser.name.as("completeUserName"), createQUser.name.as("createUserName")))
+            return q.select(Projections.bean(FindTasksRes.class, qTask))
                     .from(qTask)
-                    .leftJoin(currentQUser).on(qTask.currentUserId.eq(currentQUser.id))
-                    .leftJoin(completeQUser).on(qTask.completeUserId.eq(completeQUser.id))
-                    .leftJoin(createQUser).on(qTask.createUserId.eq(createQUser.id))
                     .where(qTask.id.eq(taskId));
-        }).one().map(it -> ResVo.success(it));
+        }).one().flatMap(setUserIdMono).flatMap(setIteration).flatMap(setRequirement).map(it -> ResVo.success(it));
         return verifyTaskIdMono.then(resVoMono);
     }
 

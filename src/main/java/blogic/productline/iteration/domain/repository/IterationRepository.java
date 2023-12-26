@@ -7,6 +7,10 @@ import com.infobip.spring.data.r2dbc.QuerydslR2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Repository
 public interface IterationRepository extends QuerydslR2dbcRepository<Iteration, Long> {
 
@@ -24,6 +28,10 @@ public interface IterationRepository extends QuerydslR2dbcRepository<Iteration, 
                return Mono.error(new ForbiddenAccessException());
            }
         });
+    }
+
+    default Mono<Map<Long, String>> findByIdsAndToMap(Collection<Long> ids) {
+        return findAllById(ids).collectList().map(its -> its.stream().collect(Collectors.toMap(Iteration::getId, Iteration::getName)));
     }
 
 }
