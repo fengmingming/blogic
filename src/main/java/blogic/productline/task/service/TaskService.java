@@ -146,6 +146,7 @@ public class TaskService {
             task.setRequirementId(command.getRequirementId());
             task.setIterationId(command.getIterationId());
             task.setPriority(command.getPriority());
+            task.setUpdateTime(LocalDateTime.now());
         }).flatMap(task -> taskRepository.save(task));
     }
 
