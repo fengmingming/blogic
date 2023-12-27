@@ -293,4 +293,49 @@ INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
       ('testcase_status', 30, '被阻塞', NOW()),
       ('testcase_status', 40, '已完成', NOW());
 
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('bug_status', 10, '待确认', NOW()),
+      ('bug_status', 20, '处理中', NOW()),
+      ('bug_status', 30, '已修复', NOW()),
+      ('bug_status', 40, '已关闭', NOW());
+
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+   VALUES
+    ('bug_type', 1, '代码错误', NOW()),
+    ('bug_type', 2, '配置相关', NOW()),
+    ('bug_type', 3, '安装部署', NOW()),
+    ('bug_type', 4, '安全相关', NOW()),
+    ('bug_type', 5, '性能问题', NOW()),
+    ('bug_type', 6, '标准规范', NOW()),
+    ('bug_type', 7, '测试脚本', NOW()),
+    ('bug_type', 8, '设计缺陷', NOW()),
+    ('bug_type', 9, '界面优化', NOW()),
+    ('bug_type', 10, '新增需求', NOW()),
+    ('bug_type', 11, '其他', NOW());
+
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('bug_fix_solution', 1, '设计如此', NOW()),
+      ('bug_fix_solution', 2, '重复bug', NOW()),
+      ('bug_fix_solution', 3, '外部原因', NOW()),
+      ('bug_fix_solution', 4, '无法重现', NOW()),
+      ('bug_fix_solution', 5, '延期处理', NOW()),
+      ('bug_fix_solution', 6, '不予解决', NOW()),
+      ('bug_fix_solution', 7, '已解决', NOW());
+
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('bug_priority', 1, '1', NOW()),
+      ('bug_priority', 2, '2', NOW()),
+      ('bug_priority', 3, '3', NOW()),
+      ('bug_priority', 4, '4', NOW());
+
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('bug_severity', 1, '1', NOW()),
+      ('bug_severity', 2, '2', NOW()),
+      ('bug_severity', 3, '3', NOW()),
+      ('bug_severity', 4, '4', NOW());
+
 
