@@ -338,4 +338,11 @@ INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
       ('bug_severity', 3, '3', NOW()),
       ('bug_severity', 4, '4', NOW());
 
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('bug_env', 1, '测试环境', NOW()),
+      ('bug_env', 2, '灰度环境', NOW()),
+      ('bug_env', 3, '生产环境', NOW()),
+      ('bug_env', 4, '开发环境', NOW());
+
 

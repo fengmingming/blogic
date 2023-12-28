@@ -61,6 +61,7 @@ public class BugRest {
     @Getter
     @Setter
     public static class FindBugRes {
+        private Long id;
         private Long testCaseId;
         private Long requirementId;
         private Long iterationId;
@@ -159,6 +160,7 @@ public class BugRest {
         private Integer severity;
         @NotNull
         private Integer priority;
+        private Long currentUserId;
     }
 
     @PostMapping("/Companies/{companyId}/Products/{productId}/Bugs")
