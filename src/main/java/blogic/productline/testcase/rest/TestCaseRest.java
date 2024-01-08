@@ -190,12 +190,48 @@ public class TestCaseRest {
     public Mono<ResVo<?>> findTestCases(@PathVariable("companyId") Long companyId, @PathVariable("productId") Long productId, @PathVariable("testCaseId") Long testCaseId, UserCurrentContext context) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, null, null, testCaseId);
+        Function<FindTestCasesRes, Mono<FindTestCasesRes>> setUserMono = (it) -> {
+            Set<Long> userIds = new HashSet<>();
+            if(it.getOwnerUserId() != null) {
+                userIds.add(it.getOwnerUserId());
+            }
+            if(it.getCreateUserId() != null) {
+                userIds.add(it.getCreateUserId());
+            }
+            if(userIds.size() > 0) {
+                return userRepository.findAllById(userIds).collectList().map(users -> {
+                    Map<Long, String> userMap = users.stream().collect(Collectors.toMap(User::getId, User::getName));
+                    it.setOwnerUserName(userMap.get(it.getOwnerUserId()));
+                    it.setCreateUserName(userMap.get(it.getCreateUserId()));
+                    return it;
+                });
+            }
+            return Mono.just(it);
+        };
+        Function<FindTestCasesRes, Mono<FindTestCasesRes>> setRequirementMono = (it) -> {
+            if(it.getRequirementId() != null) {
+                return requirementRepository.findById(it.getRequirementId()).map(requirement -> {
+                    it.setRequirementName(requirement.getRequirementName());
+                    return it;
+                });
+            }
+            return Mono.just(it);
+        };
+        Function<FindTestCasesRes, Mono<FindTestCasesRes>> setIterationMono = (it) -> {
+            if(it.getIterationId() != null) {
+                return iterationRepository.findById(it.getIterationId()).map(iteration -> {
+                    it.setIterationName(iteration.getName());
+                    return it;
+                });
+            }
+            return Mono.just(it);
+        };
         QTestCase qTestCase = QTestCase.testCase;
         return verifyMono.then(testCaseRepository.query(q -> {
             return q.select(Projections.bean(FindTestCasesRes.class, qTestCase))
                     .from(qTestCase)
                     .where(qTestCase.id.eq(testCaseId));
-        }).one().map(it -> ResVo.success(it)));
+        }).one().flatMap(setUserMono).flatMap(setRequirementMono).flatMap(setIterationMono).map(it -> ResVo.success(it)));
     }
 
     @Setter

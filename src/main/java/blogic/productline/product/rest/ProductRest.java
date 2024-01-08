@@ -7,8 +7,10 @@ import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
 import blogic.productline.product.domain.QProduct;
 import blogic.productline.product.domain.QProductMember;
+import blogic.productline.product.domain.repository.ProductMemberRepository;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.product.service.ProductService;
+import blogic.user.common.UserDto;
 import blogic.user.domain.QUser;
 import blogic.user.domain.RoleEnum;
 import blogic.user.domain.repository.UserRepository;
@@ -38,6 +40,8 @@ public class ProductRest {
     private ProductService productService;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private ProductMemberRepository productMemberRepository;
 
     @Setter
     @Getter
@@ -95,11 +99,16 @@ public class ProductRest {
     public Mono<ResVo<?>> findById(@PathVariable("companyId") Long companyId, @PathVariable("productId") Long productId, UserCurrentContext context) {
         context.equalsCompanyIdOrThrowException(companyId);
         QProduct qProduct = QProduct.product;
-        return productRepository.query(q -> q.select(qProduct)
-                .from(qProduct)
-                .where(qProduct.id.eq(productId)
-                        .and(qProduct.companyId.eq(companyId))))
-                .one().map(it -> ResVo.success(it));
+        Mono<ProductDto> productMono = productRepository.query(q -> q.select(Projections.bean(ProductDto.class, qProduct)).from(qProduct).where(qProduct.id.eq(productId).and(qProduct.companyId.eq(companyId)))).one();
+        QProductMember qPM = QProductMember.productMember;
+        QUser qUser = QUser.user;
+        Mono<List<UserDto>> usersMono = productMemberRepository.query(q -> q.select(Projections.bean(UserDto.class, qUser)).from(qPM).innerJoin(qUser).on(qPM.userId.eq(qUser.id)).where(qPM.productId.eq(productId))).all().collectList();
+        return Mono.zip(productMono, usersMono).map(tuple2 -> {
+            ProductDto productDto = tuple2.getT1();
+            List<UserDto> users = tuple2.getT2();
+            productDto.setUsers(users);
+            return ResVo.success(productDto);
+        });
     }
 
     @Setter

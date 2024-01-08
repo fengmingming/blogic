@@ -17,6 +17,7 @@ import blogic.productline.product.domain.QProduct;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.requirement.domain.QRequirement;
 import blogic.productline.requirement.domain.RequirementRepository;
+import blogic.user.common.UserDto;
 import blogic.user.domain.QUser;
 import cn.hutool.core.collection.CollectionUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -125,7 +126,7 @@ public class IterationRest {
     @Setter
     @Getter
     public static class FindOneIterationRes extends FindIterationRes {
-        private List<Long> userIds;
+        private List<UserDto> users;
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/Iteration/{iterationId}")
@@ -141,10 +142,11 @@ public class IterationRest {
                     .where(qi.id.eq(iterationId));
         }).one();
         QIterationMember qIM = QIterationMember.iterationMember;
-        Mono<List<Long>> userIds = iterationMemberRepository.query(q -> q.select(qIM.userId).from(qIM).where(qIM.iterationId.eq(iterationId))).all().collectList();
+        QUser qUser = QUser.user;
+        Mono<List<UserDto>> usersMono = iterationMemberRepository.query(q -> q.select(Projections.bean(UserDto.class, qUser)).from(qIM).innerJoin(qUser).on(qIM.userId.eq(qUser.id)).where(qIM.iterationId.eq(iterationId))).all().collectList();
         return productLineVerifier.verifyIterationOrThrowException(companyId, productId, iterationId)
-        .then(Mono.zip(iterationMono, userIds).map(it -> {
-            it.getT1().setUserIds(it.getT2());
+        .then(Mono.zip(iterationMono, usersMono).map(it -> {
+            it.getT1().setUsers(it.getT2());
             return ResVo.success(it.getT1());
         }));
     }

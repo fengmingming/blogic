@@ -40,10 +40,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -90,6 +87,7 @@ public class TaskRest {
         private String requirementName;
         private Long productId;
         private String taskName;
+        private String taskDesc;
         private Integer status;
         private Long currentUserId;
         @Column("currentUserName")
@@ -148,8 +146,8 @@ public class TaskRest {
         Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setUserIdFunc = (tasks) -> {
             Set<Long> userIdSet = new HashSet<>();
             userIdSet.addAll(tasks.stream().map(it -> it.getCreateUserId()).collect(Collectors.toSet()));
-            userIdSet.addAll(tasks.stream().map(it -> it.getCurrentUserId()).filter(it -> it != null).collect(Collectors.toSet()));
-            userIdSet.addAll(tasks.stream().map(it -> it.getCompleteUserId()).filter(it -> it != null).collect(Collectors.toSet()));
+            userIdSet.addAll(tasks.stream().map(it -> it.getCurrentUserId()).filter(Objects::nonNull).collect(Collectors.toSet()));
+            userIdSet.addAll(tasks.stream().map(it -> it.getCompleteUserId()).filter(Objects::nonNull).collect(Collectors.toSet()));
             if(userIdSet.size() > 0) {
                 return userRepository.findByIdsAndToMap(userIdSet).map(it -> {
                     tasks.stream().forEach(task -> {
@@ -164,7 +162,7 @@ public class TaskRest {
             }
         };
         Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setIteration = (tasks) -> {
-            Set<Long> ids = tasks.stream().map(it -> it.getIterationId()).collect(Collectors.toSet());
+            Set<Long> ids = tasks.stream().map(it -> it.getIterationId()).filter(Objects::nonNull).collect(Collectors.toSet());
             if(ids.size() > 0) {
                 return iterationRepository.findByIdsAndToMap(ids).map(map -> {
                     tasks.stream().forEach(task -> {
@@ -176,7 +174,7 @@ public class TaskRest {
             return Mono.just(tasks);
         };
         Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setRequirement = (tasks) -> {
-            Set<Long> ids = tasks.stream().map(it -> it.getRequirementId()).collect(Collectors.toSet());
+            Set<Long> ids = tasks.stream().map(it -> it.getRequirementId()).filter(Objects::nonNull).collect(Collectors.toSet());
             if(ids.size() > 0) {
                 return requirementRepository.findByIdsAndToMap(ids).map(map -> {
                     tasks.stream().forEach(task -> {
