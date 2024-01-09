@@ -22,6 +22,7 @@ import blogic.productline.testcase.service.TestCaseService;
 import blogic.user.domain.User;
 import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.lang.TypeReference;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -66,11 +67,11 @@ public class TestCaseRest {
     @Getter
     public static class FindTestCasesReq extends Paging {
         private Long ownerUserId;
-        private Long createUserId;
         private TestCaseStatusEnum status;
         private Long iterationId;
         private Long requirementId;
         private String title;
+        private Boolean smoke;
     }
 
     @Setter
@@ -119,15 +120,27 @@ public class TestCaseRest {
         if(req.getOwnerUserId() != null) {
             tokenInfo.equalsUserIdOrThrowException(req.getOwnerUserId());
         }
-        if(req.getCreateUserId() != null) {
-            tokenInfo.equalsUserIdOrThrowException(req.getCreateUserId());
-        }
         Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, req.getRequirementId(),
                 req.getIterationId(), null);
         QTestCase qTestCase = QTestCase.testCase;
         Predicate predicate = qTestCase.productId.eq(productId).and(qTestCase.deleted.eq(false));
+        if(req.getOwnerUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTestCase.ownerUserId.eq(req.getOwnerUserId()));
+        }
         if(req.getStatus() != null) {
             predicate = ExpressionUtils.and(predicate, qTestCase.status.eq(req.getStatus().getCode()));
+        }
+        if(req.getIterationId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTestCase.iterationId.eq(req.getIterationId()));
+        }
+        if(req.getRequirementId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTestCase.requirementId.eq(req.getRequirementId()));
+        }
+        if(StrUtil.isNotBlank(req.getTitle())) {
+            predicate = ExpressionUtils.and(predicate, qTestCase.title.like("%" + req.getTitle() + "%"));
+        }
+        if(req.getSmoke() != null) {
+            predicate = ExpressionUtils.and(predicate, qTestCase.smoke.eq(req.getSmoke()));
         }
         Predicate predicateFinal = predicate;
         Mono<List<FindTestCasesRes>> records = testCaseRepository.query(q -> {
@@ -187,7 +200,7 @@ public class TestCaseRest {
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/TestCases/{testCaseId}")
-    public Mono<ResVo<?>> findTestCases(@PathVariable("companyId") Long companyId, @PathVariable("productId") Long productId, @PathVariable("testCaseId") Long testCaseId, UserCurrentContext context) {
+    public Mono<ResVo<?>> findTestCase(@PathVariable("companyId") Long companyId, @PathVariable("productId") Long productId, @PathVariable("testCaseId") Long testCaseId, UserCurrentContext context) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyMono = productLineVerifier.verifyTestCaseOrThrowException(companyId, productId, null, null, testCaseId);
         Function<FindTestCasesRes, Mono<FindTestCasesRes>> setUserMono = (it) -> {

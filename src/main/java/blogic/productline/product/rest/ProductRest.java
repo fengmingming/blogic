@@ -15,7 +15,10 @@ import blogic.user.domain.QUser;
 import blogic.user.domain.RoleEnum;
 import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -45,6 +48,13 @@ public class ProductRest {
 
     @Setter
     @Getter
+    public static class FindProductReq extends Paging{
+        private Long createUserId;
+        private String productName;
+    }
+
+    @Setter
+    @Getter
     public static class FindProductRes {
         private Long id;
         private Long companyId;
@@ -59,38 +69,51 @@ public class ProductRest {
 
     @GetMapping("/Companies/{companyId}/Products")
     public Mono<ResVo<?>> findProducts(@PathVariable("companyId") Long companyId, TokenInfo tokenInfo,
-                                       UserCurrentContext context, Paging paging) {
+                                       UserCurrentContext context, FindProductReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         if (context.authenticate(RoleEnum.ROLE_MANAGER)) {
             QProduct qProduct = QProduct.product;
             QUser qUser = QUser.user;
+            Predicate predicate = qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false));
+            if(StrUtil.isNotBlank(req.getProductName())) {
+                predicate = ExpressionUtils.and(predicate, qProduct.productName.like("%" + req.getProductName() + "%"));
+            }
+            if(req.getCreateUserId() != null) {
+                predicate = ExpressionUtils.and(predicate, qProduct.createUserId.eq(req.getCreateUserId()));
+            }
+            Predicate predicateFinal = predicate;
             Mono<List<FindProductRes>> productListMono = productRepository.query(query -> query.select(Projections.bean(FindProductRes.class, qProduct, qUser.name.as("createUserName")))
                     .from(qProduct)
                     .leftJoin(qUser).on(qProduct.createUserId.eq(qUser.id))
-                    .where(qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false)))
+                    .where(predicateFinal)
                     .orderBy(qProduct.createTime.desc())
-                    .offset(paging.getOffset()).limit(paging.getLimit())).all().collectList();
+                    .offset(req.getOffset()).limit(req.getLimit())).all().collectList();
             Mono<Long> productTotalMono = productRepository.query(query -> query.select(qProduct.id.count())
                     .from(qProduct)
                     .leftJoin(qUser).on(qProduct.createUserId.eq(qUser.id))
-                    .where(qProduct.companyId.eq(companyId).and(qProduct.deleted.eq(false)))).one();
+                    .where(predicateFinal)).one();
             return Mono.zip(productListMono, productTotalMono).map(t -> ResVo.success(t.getT2(), t.getT1()));
         } else {
             QProduct qProduct = QProduct.product;
             QProductMember qPm = QProductMember.productMember;
             QUser qUser = QUser.user;
+            Predicate predicate = qProduct.deleted.isFalse();
+            if(StrUtil.isNotBlank(req.getProductName())) {
+                predicate = ExpressionUtils.and(predicate, qProduct.productName.like("%" + req.getProductName() + "%"));
+            }
+            Predicate predicateFinal = predicate;
             Mono<List<FindProductRes>> productListMono = productRepository.query(query -> query.select(Projections.bean(FindProductRes.class, qProduct, qUser.name.as("createUserName")))
                     .from(qProduct)
                     .innerJoin(qPm).on(qProduct.id.eq(qPm.productId).and(qPm.userId.eq(tokenInfo.getUserId())).and(qProduct.companyId.eq(companyId)))
                     .innerJoin(qUser).on(qUser.id.eq(qProduct.createUserId))
-                    .where(qProduct.deleted.isFalse())
+                    .where(predicateFinal)
                     .orderBy(qProduct.createTime.desc())
-                    .offset(paging.getOffset()).limit(paging.getLimit())).all().collectList();
+                    .offset(req.getOffset()).limit(req.getLimit())).all().collectList();
             Mono<Long> productTotalMono = productRepository.query(query -> query.select(qProduct.id.count())
                     .from(qProduct)
                     .innerJoin(qPm).on(qProduct.id.eq(qPm.productId).and(qPm.userId.eq(tokenInfo.getUserId())).and(qProduct.companyId.eq(companyId)))
                     .innerJoin(qUser).on(qUser.id.eq(qProduct.createUserId))
-                    .where(qProduct.deleted.isFalse())).one();
+                    .where(predicateFinal)).one();
             return Mono.zip(productListMono, productTotalMono).map(t -> ResVo.success(t.getT2(), t.getT1()));
         }
     }

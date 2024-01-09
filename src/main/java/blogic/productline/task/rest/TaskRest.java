@@ -70,11 +70,13 @@ public class TaskRest {
     @Setter
     @Getter
     public static class FindTasksReq extends Paging {
+        private Long iterationId;
+        private Long requirementId;
         private String taskName;
-        private Long createUserId;
         private Long currentUserId;
         private Long completeUserId;
         private TaskStatusEnum taskStatus;
+
     }
 
     @Setter
@@ -121,7 +123,7 @@ public class TaskRest {
         QTask qTask = QTask.task;
         Predicate predicate = qTask.productId.eq(productId).and(qTask.deleted.eq(false));
         if(StrUtil.isNotBlank(req.getTaskName())) {
-            predicate = ExpressionUtils.and(predicate, qTask.taskName.like(req.getTaskName()));
+            predicate = ExpressionUtils.and(predicate, qTask.taskName.like("%" + req.getTaskName() + "%"));
         }
         if(req.getTaskStatus() != null) {
             predicate = ExpressionUtils.and(predicate, qTask.status.eq(req.getTaskStatus().getCode()));
@@ -132,8 +134,11 @@ public class TaskRest {
         if(req.getCompleteUserId() != null) {
             predicate = ExpressionUtils.and(predicate, qTask.completeUserId.eq(req.getCompleteUserId()));
         }
-        if(req.getCreateUserId() != null) {
-            predicate = ExpressionUtils.and(predicate, qTask.createUserId.eq(req.getCreateUserId()));
+        if(req.getIterationId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.iterationId.eq(req.getIterationId()));
+        }
+        if(req.getRequirementId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.requirementId.eq(req.getRequirementId()));
         }
         Predicate predicateFinal = predicate;
         Mono<List<FindTasksRes>> records = taskRepository.query(q -> {

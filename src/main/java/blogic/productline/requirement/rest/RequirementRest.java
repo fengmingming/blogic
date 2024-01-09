@@ -9,7 +9,6 @@ import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.requirement.domain.QRequirement;
-import blogic.productline.requirement.domain.Requirement;
 import blogic.productline.requirement.domain.RequirementRepository;
 import blogic.productline.requirement.domain.RequirementStatus;
 import blogic.productline.requirement.service.RequirementService;
@@ -54,6 +53,7 @@ public class RequirementRest {
     @Getter
     public static class FindRequirementReq extends Paging {
         private String requirementName;
+        private String requirementSources;
         private RequirementStatus requirementStatus;
         private Long createUserId;
     }
@@ -70,7 +70,10 @@ public class RequirementRest {
                 QRequirement qRequirement = QRequirement.requirement;
                 Predicate predicate = qRequirement.productId.eq(productId).and(qRequirement.deleted.eq(false));
                 if(StrUtil.isNotBlank(req.getRequirementName())) {
-                    predicate = ExpressionUtils.and(predicate, qRequirement.requirementName.like(req.getRequirementName()));
+                    predicate = ExpressionUtils.and(predicate, qRequirement.requirementName.like("%" + req.getRequirementName() + "%"));
+                }
+                if(StrUtil.isNotBlank(req.getRequirementSources())) {
+                    predicate = ExpressionUtils.and(predicate, qRequirement.requirementSources.like("%" + req.getRequirementSources() + "%"));
                 }
                 if(req.getRequirementStatus() != null) {
                     predicate = ExpressionUtils.and(predicate, qRequirement.requirementStatus.eq(req.getRequirementStatus().getCode()));

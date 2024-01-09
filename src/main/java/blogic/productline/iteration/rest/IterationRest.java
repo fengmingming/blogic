@@ -20,6 +20,7 @@ import blogic.productline.requirement.domain.RequirementRepository;
 import blogic.user.common.UserDto;
 import blogic.user.domain.QUser;
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.querydsl.core.types.ExpressionUtils;
@@ -63,6 +64,8 @@ public class IterationRest {
     @Getter
     public static class FindIterationReq extends Paging {
         private Long createUserId;
+        private String name;
+        private Integer status;
     }
 
     @Setter
@@ -98,6 +101,12 @@ public class IterationRest {
                 Predicate predicate = qi.productId.eq(productId).and(qi.deleted.eq(false));
                 if(req.getCreateUserId() != null) {
                     predicate = ExpressionUtils.and(predicate, qi.createUserId.eq(req.getCreateUserId()));
+                }
+                if(req.getStatus() != null) {
+                    predicate = ExpressionUtils.and(predicate, qi.status.eq(req.getStatus()));
+                }
+                if(StrUtil.isNotBlank(req.getName())) {
+                    predicate = ExpressionUtils.and(predicate, qi.name.like("%" + req.getName() + "%"));
                 }
                 Predicate predicateFinal = predicate;
                 Mono<List<FindIterationRes>> records = iterationRepository.query(q -> {

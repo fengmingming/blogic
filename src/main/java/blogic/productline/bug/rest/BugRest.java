@@ -1,5 +1,6 @@
 package blogic.productline.bug.rest;
 
+import blogic.core.enums.DigitalizedEnumPropertyEditor;
 import blogic.core.enums.json.DigitalizedEnumDeserializer;
 import blogic.core.exception.IllegalArgumentException;
 import blogic.core.rest.Paging;
@@ -14,6 +15,10 @@ import blogic.productline.bug.domain.repository.BugRepository;
 import blogic.productline.bug.mapstruct.BugMapStruct;
 import blogic.productline.bug.service.BugService;
 import blogic.productline.infras.ProductLineVerifier;
+import blogic.productline.iteration.domain.repository.IterationRepository;
+import blogic.productline.requirement.domain.RequirementRepository;
+import blogic.productline.testcase.domain.repository.TestCaseRepository;
+import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -27,11 +32,14 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 public class BugRest {
@@ -44,18 +52,33 @@ public class BugRest {
     private ProductLineVerifier productLineVerifier;
     @Autowired
     private BugMapStruct bugMapStruct;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private IterationRepository iterationRepository;
+    @Autowired
+    private RequirementRepository requirementRepository;
+    @Autowired
+    private TestCaseRepository testCaseRepository;
+
+    @InitBinder
+    public void initBinder(WebDataBinder dataBinder) {
+        dataBinder.registerCustomEditor(BugStatusEnum.class, new DigitalizedEnumPropertyEditor(BugStatusEnum.class));
+    }
 
     @Setter
     @Getter
     public static class FindBugsReq extends Paging {
+        private Long id;
         private Long testCaseId;
         private Long iterationId;
         private Long requirementId;
         private BugStatusEnum status;
-        private Long createUserId;
         private Long fixUserId;
         private Long currentUserId;
         private String title;
+        private Integer bugType;
+        private Integer env;
     }
 
     @Getter
@@ -63,8 +86,11 @@ public class BugRest {
     public static class FindBugRes {
         private Long id;
         private Long testCaseId;
+        private String testCaseTitle;
         private Long requirementId;
+        private String requirementName;
         private Long iterationId;
+        private String iterationName;
         private Long productId;
         private String iterationVersion;
         private String title;
@@ -76,12 +102,17 @@ public class BugRest {
         private Integer severity;
         private Integer priority;
         private Long currentUserId;
+        private String currentUserName;
         private Long fixUserId;
+        private String fixUserName;
         private Integer fixSolution;
         private String fixVersion;
         private Long createUserId;
+        private String createUserName;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime createTime;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime updateTime;
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/Bugs")
@@ -102,9 +133,6 @@ public class BugRest {
         if(req.getStatus() != null) {
             predicate = ExpressionUtils.and(predicate, qBug.status.eq(req.getStatus().getCode()));
         }
-        if(req.getCreateUserId() != null) {
-            predicate = ExpressionUtils.and(predicate, qBug.createUserId.eq(req.getCreateUserId()));
-        }
         if(req.getCurrentUserId() != null) {
             predicate = ExpressionUtils.and(predicate, qBug.currentUserId.eq(req.getCurrentUserId()));
         }
@@ -112,18 +140,78 @@ public class BugRest {
             predicate = ExpressionUtils.and(predicate, qBug.fixUserId.eq(req.getFixUserId()));
         }
         if(StrUtil.isNotBlank(req.getTitle())) {
-            predicate = ExpressionUtils.and(predicate, qBug.title.like(req.getTitle()));
+            predicate = ExpressionUtils.and(predicate, qBug.title.like("%" + req.getTitle() + "%"));
+        }
+        if(req.getEnv() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.env.eq(req.getEnv()));
+        }
+        if(req.getBugType() != null) {
+            predicate = ExpressionUtils.and(predicate, qBug.bugType.eq(req.getBugType()));
         }
         Predicate predicateFinal = predicate;
         Mono<List<FindBugRes>> records = bugRepository.query(q -> {
             return q.select(Projections.bean(FindBugRes.class, qBug))
                     .from(qBug).where(predicateFinal).orderBy(qBug.id.desc()).offset(req.getOffset()).limit(req.getLimit());
         }).all().collectList();
+        Function<List<FindBugRes>, Mono<List<FindBugRes>>> setUsers = (bugs) -> {
+            Set<Long> userIds = new HashSet<>();
+            userIds.addAll(bugs.stream().map(it -> it.getCreateUserId()).collect(Collectors.toSet()));
+            userIds.addAll(bugs.stream().map(it -> it.getCurrentUserId()).filter(Objects::nonNull).collect(Collectors.toSet()));
+            userIds.addAll(bugs.stream().map(it -> it.getFixUserId()).filter(Objects::nonNull).collect(Collectors.toSet()));
+            if(userIds.size() > 0) {
+                return userRepository.findByIdsAndToMap(userIds).map(map -> {
+                    bugs.forEach(bug -> {
+                        bug.setCreateUserName(map.get(bug.getCreateUserId()));
+                        bug.setCurrentUserName(map.get(bug.getCurrentUserId()));
+                        bug.setFixUserName(map.get(bug.getFixUserId()));
+                    });
+                    return bugs;
+                });
+            }
+            return Mono.just(bugs);
+        };
+        Function<List<FindBugRes>, Mono<List<FindBugRes>>> setIterations = (bugs) -> {
+            Collection<Long> iterationIds = bugs.stream().map(it -> it.getIterationId()).filter(Objects::nonNull).collect(Collectors.toSet());
+            if(iterationIds.size() > 0) {
+                return iterationRepository.findByIdsAndToMap(iterationIds).map(map -> {
+                    bugs.forEach(bug -> {
+                        bug.setIterationName(map.get(bug.getIterationId()));
+                    });
+                    return bugs;
+                });
+            }
+            return Mono.just(bugs);
+        };
+        Function<List<FindBugRes>, Mono<List<FindBugRes>>> setRequirements = (bugs) -> {
+            Collection<Long> requirementIds = bugs.stream().map(it -> it.getRequirementId()).filter(Objects::nonNull).collect(Collectors.toSet());
+            if(requirementIds.size() > 0) {
+                return requirementRepository.findByIdsAndToMap(requirementIds).map(map -> {
+                    bugs.forEach(bug -> {
+                        bug.setRequirementName(map.get(bug.getRequirementId()));
+                    });
+                    return bugs;
+                });
+            }
+            return Mono.just(bugs);
+        };
+        Function<List<FindBugRes>, Mono<List<FindBugRes>>> setTestCases = (bugs) -> {
+            Collection<Long> testCaseIds = bugs.stream().map(it -> it.getTestCaseId()).filter(Objects::nonNull).collect(Collectors.toSet());
+            if(testCaseIds.size() > 0) {
+                return testCaseRepository.findByIdsAndToMap(testCaseIds).map(map -> {
+                    bugs.forEach(bug -> {
+                        bug.setTestCaseTitle(map.get(bug.getTestCaseId()));
+                    });
+                    return bugs;
+                });
+            }
+            return Mono.just(bugs);
+        };
         Mono<Long> total = bugRepository.query(q -> {
             return q.select(qBug.id.count()).from(qBug).where(predicateFinal);
         }).one();
         return productLineVerifier.verifyProductOrThrowException(companyId, productId)
-                .then(Mono.zip(total, records).map(it -> ResVo.success(it.getT1(), it.getT2())));
+                .then(Mono.zip(total, records.flatMap(setUsers).flatMap(setIterations).flatMap(setRequirements).flatMap(setTestCases)
+                ).map(it -> ResVo.success(it.getT1(), it.getT2())));
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/Bugs/{bugId}")
@@ -131,10 +219,58 @@ public class BugRest {
                                    @PathVariable("bugId")Long bugId, UserCurrentContext context) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyMono = productLineVerifier.verifyBugOrThrowException(companyId, productId, null, null, null, bugId);
+        Function<FindBugRes, Mono<FindBugRes>> setUser = (bug) -> {
+            Set<Long> userIds = new HashSet<>();
+            if(bug.getCreateUserId() != null) {
+                userIds.add(bug.getCreateUserId());
+            }
+            if(bug.getCurrentUserId() != null) {
+                userIds.add(bug.getCurrentUserId());
+            }
+            if(bug.getFixUserId() != null) {
+                userIds.add(bug.getFixUserId());
+            }
+            if(userIds.size() > 0) {
+                return userRepository.findByIdsAndToMap(userIds).map(map -> {
+                    bug.setCreateUserName(map.get(bug.getCreateUserId()));
+                    bug.setCurrentUserName(map.get(bug.getCurrentUserId()));
+                    bug.setFixUserName(map.get(bug.getFixUserId()));
+                    return bug;
+                });
+            }
+            return Mono.just(bug);
+        };
+        Function<FindBugRes, Mono<FindBugRes>> setIteration = (bug) -> {
+            if(bug.getIterationId() != null) {
+                return iterationRepository.findById(bug.getIterationId()).map(iteration -> {
+                    bug.setIterationName(iteration.getName());
+                    return bug;
+                });
+            }
+            return Mono.just(bug);
+        };
+        Function<FindBugRes, Mono<FindBugRes>> setRequirement = (bug) -> {
+            if(bug.getRequirementId() != null) {
+                return requirementRepository.findById(bug.getRequirementId()).map(requirement -> {
+                    bug.setRequirementName(requirement.getRequirementName());
+                    return bug;
+                });
+            }
+            return Mono.just(bug);
+        };
+        Function<FindBugRes, Mono<FindBugRes>> setTestCase = (bug) -> {
+            if(bug.getTestCaseId() != null) {
+                return testCaseRepository.findById(bug.getTestCaseId()).map(testCase -> {
+                    bug.setTestCaseTitle(testCase.getTitle());
+                    return bug;
+                });
+            }
+            return Mono.just(bug);
+        };
         QBug qBug = QBug.bug;
         return verifyMono.then(bugRepository.query(q -> {
             return q.select(Projections.bean(FindBugRes.class, qBug)).from(qBug).where(qBug.id.eq(bugId));
-        }).one().map(it -> ResVo.success(it)));
+        }).one().flatMap(setUser).flatMap(setIteration).flatMap(setRequirement).flatMap(setTestCase).map(it -> ResVo.success(it)));
     }
 
     @Setter
