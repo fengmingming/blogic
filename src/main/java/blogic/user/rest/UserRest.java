@@ -1,6 +1,7 @@
 package blogic.user.rest;
 
 import blogic.company.domain.Department;
+import blogic.company.domain.QDepartment;
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.ResVo;
 import blogic.core.security.JwtTokenUtil;
@@ -10,20 +11,17 @@ import blogic.productline.iteration.domain.QIterationMember;
 import blogic.productline.iteration.domain.repository.IterationMemberRepository;
 import blogic.productline.product.domain.QProductMember;
 import blogic.productline.product.domain.repository.ProductMemberRepository;
-import blogic.user.domain.QUser;
-import blogic.user.domain.QUserCompanyRole;
-import blogic.user.domain.RoleEnum;
-import blogic.user.domain.User;
+import blogic.user.domain.*;
 import blogic.user.domain.repository.UserCompanyRoleRepository;
 import blogic.user.domain.repository.UserDepartmentRepository;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserCompanyDto;
+import blogic.user.service.UserDepartmentDto;
 import blogic.user.service.UserService;
 import cn.hutool.core.map.MapUtil;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
-import com.querydsl.sql.SQLQuery;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -35,9 +33,9 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 public class UserRest {
@@ -97,8 +95,6 @@ public class UserRest {
         private Long companyId;
         private Long productId;
         private Long iterationId;
-        private Integer pageNum;
-        private Integer pageSize;
     }
 
     @Setter
@@ -107,6 +103,9 @@ public class UserRest {
         private Long id;
         private String phone;
         private String name;
+        private List<String> departments;
+        private List<RoleEnum> roles;
+        private Boolean admin;
     }
 
     @GetMapping("/Users")
@@ -122,23 +121,79 @@ public class UserRest {
         }
         QUser qUser = QUser.user;
         QUserCompanyRole qCR = QUserCompanyRole.userCompanyRole;
+        Function<List<FindUserRes>, Mono<List<FindUserRes>>> setDepartments = (users) -> {
+            Collection<Long> userIds = users.stream().map(it -> it.getId()).collect(Collectors.toSet());
+            if(userIds.size() > 0) {
+                QUserDepartment qUD = QUserDepartment.userDepartment;
+                QDepartment qD = QDepartment.department;
+                return userDepartmentRepository.query(q -> q.select(Projections.bean(UserDepartmentDto.class, qUD.userId, qUD.departmentId, qD.departmentName))
+                        .from(qUD).innerJoin(qD).on(qUD.departmentId.eq(qD.id).and(qD.companyId.eq(req.getCompanyId()))).where(qUD.userId.in(userIds)))
+                        .all().collectList().map(uds -> {
+                            Map<Long, List<UserDepartmentDto>> udMap = uds.stream().collect(Collectors.groupingBy(UserDepartmentDto::getUserId));
+                            users.forEach(user -> {
+                                List<UserDepartmentDto> its = udMap.get(user.getId());
+                                if(its != null) {
+                                    user.setDepartments(its.stream().map(it -> it.getDepartmentName()).collect(Collectors.toList()));
+                                }
+                            });
+                            return users;
+                        });
+            }
+            return Mono.just(users);
+        };
+        Function<List<FindUserRes>, Mono<List<FindUserRes>>> setRoles = (users) -> {
+            Collection<Long> userIds = users.stream().map(it -> it.getId()).collect(Collectors.toSet());
+            if(userIds.size() > 0) {
+                QUserCompanyRole qUCR = QUserCompanyRole.userCompanyRole;
+                return userCompanyRoleRepository.query(q -> q.select(qUCR).from(qUCR).where(qUCR.companyId.eq(req.getCompanyId()).and(qUCR.userId.in(userIds))))
+                        .all().collectList().map(ucrs -> {
+                            Map<Long, List<UserCompanyRole>> map = ucrs.stream().collect(Collectors.groupingBy(UserCompanyRole::getUserId));
+                            users.forEach(user -> {
+                                List<UserCompanyRole> roles = map.get(user.getId());
+                                user.setRoles(roles.stream().map(it -> it.getRole()).collect(Collectors.toList()));
+                                user.setAdmin(roles.stream().filter(it -> it.getAdmin()).findAny().isPresent());
+                            });
+                            return users;
+                        });
+            }
+            return Mono.just(users);
+        };
         return userIdsMono.flatMap(userIds -> {
             return userRepository.query(q -> {
                 Predicate predicate = qUser.deleted.isFalse();
                 if(userIds.size() > 0) {
                     predicate = ExpressionUtils.and(predicate, qUser.id.in(userIds));
                 }
-                SQLQuery query = q.select(Projections.bean(FindUserRes.class, qUser.id, qUser.name, qUser.phone))
-                        .distinct()
+                return q.distinct().select(Projections.bean(FindUserRes.class, qUser.id, qUser.name, qUser.phone))
                         .from(qUser).innerJoin(qCR).on(qCR.userId.eq(qUser.id).and(qCR.companyId.eq(req.getCompanyId())))
                         .where(predicate);
-                if(req.getPageNum() != null && req.getPageSize() != null) {
-                    long offset = (req.getPageNum() - 1) * req.getPageSize();
-                    query.offset(offset).limit(req.getPageSize().longValue());
-                }
-                return query;
             }).all().collectList();
-        }).map(it -> ResVo.success(it));
+        }).flatMap(setDepartments).flatMap(setRoles).map(it -> ResVo.success(it));
+    }
+
+    @GetMapping("/Companies/{companyId}/Users/{userId}")
+    public Mono<ResVo<?>> getCurrentUserInfo(@PathVariable("companyId")Long companyId, @PathVariable("userId") Long userId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        QUserCompanyRole qUR = QUserCompanyRole.userCompanyRole;
+        Mono<List<UserCompanyRole>> ucrsMono = userCompanyRoleRepository.query(q -> q.select(qUR).from(qUR).where(qUR.userId.eq(userId).and(qUR.companyId.eq(companyId)))).all().collectList();
+        QUserDepartment qUD = QUserDepartment.userDepartment;
+        QDepartment qD = QDepartment.department;
+        Mono<List<Department>> departmentsMono = userDepartmentRepository.query(q -> q.select(qD).from(qUD).innerJoin(qD)
+                .on(qD.id.eq(qUD.departmentId).and(qD.companyId.eq(companyId)))
+                .where(qUD.userId.eq(userId))).all().collectList();
+        return Mono.zip(userRepository.findById(userId), ucrsMono, departmentsMono).map(tuple3 -> {
+           if(tuple3.getT2().size() == 0) {
+               throw new ForbiddenAccessException();
+           }
+           User user = tuple3.getT1();
+           FindUserRes res = new FindUserRes();
+           res.setId(user.getId());
+           res.setName(user.getName());
+           res.setPhone(user.getPhone());
+           res.setRoles(tuple3.getT2().stream().map(it -> it.getRole()).collect(Collectors.toList()));
+           res.setDepartments(tuple3.getT3().stream().map(it -> it.getDepartmentName()).collect(Collectors.toList()));
+           return ResVo.success(res);
+        });
     }
 
     @GetMapping("/Users/{userId}")
