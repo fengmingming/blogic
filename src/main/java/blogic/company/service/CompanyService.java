@@ -111,15 +111,4 @@ public class CompanyService {
         return departmentRepository.save(department).then(Mono.empty());
     }
 
-    @Transactional
-    public Mono<Void> bindUserToDepartment(Long userId, Long departmentId) {
-        return departmentRepository.existUser(departmentId, userId).flatMap(it -> {
-            if(it) {
-                return Mono.empty();
-            }else {
-                return departmentRepository.bindUser(departmentId, userId);
-            }
-        });
-    }
-
 }

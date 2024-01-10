@@ -1,6 +1,5 @@
 package blogic.company.rest;
 
-import blogic.company.domain.Department;
 import blogic.company.domain.repository.CompanyRepository;
 import blogic.company.domain.repository.DepartmentRepository;
 import blogic.company.service.CompanyService;
@@ -10,8 +9,6 @@ import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
 import blogic.user.domain.RoleEnum;
-import blogic.user.domain.User;
-import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -142,31 +139,6 @@ public class CompanyRest {
     public static class BindUserReq {
         @NotNull
         private Long userId;
-    }
-
-    @PutMapping(value="/Companies/{companyId}/Departments/{departmentId}", params = "action=bindUser")
-    public Mono<ResVo<?>> bindUser(@PathVariable("companyId") Long companyId, @PathVariable("departmentId") Long departmentId,
-                                   UserCurrentContext context, @RequestBody @Valid BindUserReq req) {
-        context.equalsCompanyIdOrThrowException(companyId);
-        context.authenticateOrThrowException(RoleEnum.ROLE_MANAGER);
-        Mono<Department> validDepartmentMono = departmentRepository.findById(departmentId)
-                .switchIfEmpty(Mono.error(() -> new DataNotFoundException()))
-                .flatMap(it -> {
-                    if(it.getCompanyId().equals(companyId)) {
-                        return Mono.just(it);
-                    }else {
-                        return Mono.error(new ForbiddenAccessException());
-                    }
-                });
-        Mono<Void> validUserMono = userService.validUserIdAndCompanyId(req.getUserId(), companyId).flatMap(it -> {
-            if(it) {
-                return Mono.empty();
-            }else {
-                return Mono.error(new ForbiddenAccessException());
-            }
-        });
-        return validDepartmentMono.then(validUserMono).then(companyService.bindUserToDepartment(req.getUserId(), departmentId))
-                .then(Mono.just(ResVo.success()));
     }
 
 }

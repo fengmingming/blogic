@@ -2,6 +2,7 @@ package blogic.user.rest;
 
 import blogic.company.domain.Department;
 import blogic.company.domain.QDepartment;
+import blogic.company.domain.repository.DepartmentRepository;
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.ResVo;
 import blogic.core.security.JwtTokenUtil;
@@ -25,6 +26,7 @@ import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -52,6 +54,8 @@ public class UserRest {
     private IterationMemberRepository iterationMemberRepository;
     @Autowired
     private ProductMemberRepository productMemberRepository;
+    @Autowired
+    private DepartmentRepository departmentRepository;
 
     @Setter
     @Getter
@@ -86,6 +90,41 @@ public class UserRest {
         command.setUserId(tokenInfo.getUserId());
         command.setName(req.getName());
         return userService.updateUser(command).map(it -> ResVo.success());
+    }
+
+    @Setter
+    @Getter
+    public static class UpdateCompanyUserReq {
+        @Size(min = 1)
+        @NotNull
+        private List<Long> departments;
+        @Size(min = 1)
+        @NotNull
+        private List<RoleEnum> roles;
+    }
+
+    @PutMapping("/Companies/{companyId}/Users/{userId}")
+    public Mono<ResVo<?>> updateCompanyUserInfo(@PathVariable("companyId") Long companyId, @PathVariable("userId") Long userId,
+                                                @RequestBody UpdateCompanyUserReq req, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        UserService.UpdateCompanyUserCommand command = new UserService.UpdateCompanyUserCommand();
+        command.setCompanyId(companyId);
+        command.setUserId(userId);
+        command.setRoles(req.getRoles());
+        command.setDepartmentIds(req.getDepartments());
+        Mono<Boolean> validMono = userService.validUserIdAndCompanyId(userId, companyId);
+        return validMono.flatMap(it -> {
+           if(it) {
+               QDepartment qD = QDepartment.department;
+               return departmentRepository.query(q -> q.select(qD).from(qD).where(qD.id.in(req.getDepartments()).and(qD.companyId.eq(companyId)))).all().collectList()
+                       .flatMap(departments -> {
+                          command.setDepartmentIds(departments.stream().map(Department::getId).collect(Collectors.toList()));
+                          return userService.updateCompanyUserInfo(command).then(Mono.just(ResVo.success()));
+                       });
+           }else {
+               return Mono.error(new ForbiddenAccessException());
+           }
+        });
     }
 
     @Getter
@@ -172,7 +211,7 @@ public class UserRest {
     }
 
     @GetMapping("/Companies/{companyId}/Users/{userId}")
-    public Mono<ResVo<?>> getCurrentUserInfo(@PathVariable("companyId")Long companyId, @PathVariable("userId") Long userId, UserCurrentContext context) {
+    public Mono<ResVo<?>> getCompanyUserInfo(@PathVariable("companyId")Long companyId, @PathVariable("userId") Long userId, UserCurrentContext context) {
         context.equalsCompanyIdOrThrowException(companyId);
         QUserCompanyRole qUR = QUserCompanyRole.userCompanyRole;
         Mono<List<UserCompanyRole>> ucrsMono = userCompanyRoleRepository.query(q -> q.select(qUR).from(qUR).where(qUR.userId.eq(userId).and(qUR.companyId.eq(companyId)))).all().collectList();
@@ -210,16 +249,6 @@ public class UserRest {
                     .put("companies", companies)
                     .build());
             });
-    }
-
-    /**
-     * 给用户分配角色
-     * 管理员角色分配
-     * */
-    @PutMapping("/Users/{userId}/Roles")
-    public Mono<ResVo<?>> assignRoles(@PathVariable("userId")Long userId, UserCurrentContext context, @RequestBody List<RoleEnum> roles) {
-        Long companyId = context.getCompanyId();
-        return userService.assignRoles(userId, companyId, roles).then(Mono.just(ResVo.success()));
     }
 
     @Setter

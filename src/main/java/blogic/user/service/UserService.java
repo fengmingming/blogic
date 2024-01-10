@@ -1,18 +1,19 @@
 package blogic.user.service;
 
 import blogic.company.domain.Company;
-import blogic.core.security.*;
-import blogic.user.domain.RoleEnum;
-import blogic.user.domain.User;
-import blogic.user.domain.UserCompanyRole;
+import blogic.company.domain.QDepartment;
 import blogic.company.domain.repository.CompanyRepository;
+import blogic.core.security.*;
+import blogic.user.domain.*;
 import blogic.user.domain.repository.UserCompanyRoleRepository;
+import blogic.user.domain.repository.UserDepartmentRepository;
 import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -25,7 +26,6 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -44,6 +44,8 @@ public class UserService {
     private AuthenticateFilter.JwtKeyProperties jwtKeyProperties;
     @Autowired
     private UserCurrentContextRepository userCurrentContextRepository;
+    @Autowired
+    private UserDepartmentRepository userDepartmentRepository;
 
     @Transactional
     public Mono<User> createUser(@Valid User user) {
@@ -105,31 +107,6 @@ public class UserService {
     }
 
     /**
-     * 分配角色
-     * @param userId 用户
-     * @param companyId 公司
-     * @param roles 角色列表
-     * */
-    @Transactional
-    public Mono<Void> assignRoles(Long userId, Long companyId, List<RoleEnum> roles) {
-        return userCompanyRoleRepository.findByUserId(userId).filter(ucr -> ucr.getCompanyId().equals(companyId)).collectList()
-            .flatMap(ucrs -> {
-                List<RoleEnum> existRoles = ucrs.stream().map(it -> it.getRole()).collect(Collectors.toList());
-                Collection<RoleEnum> newRoles = CollectionUtil.subtract(roles, existRoles);
-                Collection<RoleEnum> deleteRoles = CollectionUtil.subtract(existRoles, roles);
-                List<Long> deleteIds = ucrs.stream().filter(it -> deleteRoles.contains(it.getRole())).map(it -> it.getId()).collect(Collectors.toList());
-                return userCompanyRoleRepository.deleteById(Flux.fromStream(deleteIds.stream()))
-                    .then(userCompanyRoleRepository.saveAll(Flux.fromStream(newRoles.stream().map(it -> {
-                        UserCompanyRole ucr = new UserCompanyRole();
-                        ucr.setRole(it);
-                        ucr.setUserId(userId);
-                        ucr.setCompanyId(companyId);
-                        return ucr;
-                    }))).collectList()).then();
-            });
-    }
-
-    /**
      * 验证公司id是否属于用户id
      * @param userId
      * @param companyId
@@ -150,6 +127,74 @@ public class UserService {
                             .companyName(company.getCompanyName()).authorities(roles).build();
                     return userCurrentContextRepository.save(tokenInfo, context, jwtKeyProperties.getTimeout(), TimeUnit.MINUTES);
                 });
+    }
+
+    @Setter
+    @Getter
+    public static class UpdateCompanyUserCommand {
+        @NotNull
+        private Long userId;
+        @NotNull
+        @Size(min = 1)
+        private List<Long> departmentIds;
+        @NotNull
+        @Size(min = 1)
+        private List<RoleEnum> roles;
+        @NotNull
+        private Long companyId;
+    }
+
+    @Transactional
+    public Mono<Void> updateCompanyUserInfo(@NotNull @Valid UpdateCompanyUserCommand command) {
+        QUserDepartment qUD = QUserDepartment.userDepartment;
+        QDepartment qD = QDepartment.department;
+        Mono<Void> updateDepartment = userDepartmentRepository.query(q -> q.select(qUD)
+                        .from(qUD).innerJoin(qD).on(qD.id.eq(qUD.departmentId).and(qD.companyId.eq(command.getCompanyId())))
+                        .where(qUD.userId.eq(command.getUserId()))).all().collectList()
+                .flatMap(uds -> {
+                    List<Long> existIds = uds.stream().map(it -> it.getDepartmentId()).collect(Collectors.toList());
+                    List<Long> addList = CollectionUtil.subtractToList(command.getDepartmentIds(), existIds);
+                    List<Long> removeList = CollectionUtil.subtractToList(existIds, command.getDepartmentIds());
+                    Mono<Void> mono = Mono.empty();
+                    if(addList.size() > 0) {
+                        mono = mono.then(userDepartmentRepository.saveAll(addList.stream().map(it -> {
+                            UserDepartment userDepartment = new UserDepartment();
+                            userDepartment.setDepartmentId(it);
+                            userDepartment.setUserId(command.getUserId());
+                            return userDepartment;
+                        }).collect(Collectors.toList())).collectList()).then();
+                    }
+                    if(removeList.size() > 0) {
+                        mono = mono.then(userDepartmentRepository.deleteWhere(qUD.userId.eq(command.getUserId()).and(qUD.departmentId.in(removeList)))).then();
+                    }
+                    return mono;
+                });
+        QUserCompanyRole qUCR = QUserCompanyRole.userCompanyRole;
+        Mono<Void> updateRole = userCompanyRoleRepository.query(q -> q.select(qUCR)
+                        .from(qUCR)
+                        .where(qUCR.userId.eq(command.getUserId()).and(qUCR.companyId.eq(command.getCompanyId())))).all().collectList()
+                .flatMap(ucrs -> {
+                    List<RoleEnum> existRoles = ucrs.stream().map(it -> it.getRole()).collect(Collectors.toList());
+                    List<RoleEnum> addList = CollectionUtil.subtractToList(command.getRoles(), existRoles);
+                    List<RoleEnum> removeList = CollectionUtil.subtractToList(existRoles, command.getRoles());
+                    Mono<Void> mono = Mono.empty();
+                    if(addList.size() > 0) {
+                        mono = mono.then(userCompanyRoleRepository.saveAll(addList.stream().map(it -> {
+                            UserCompanyRole ucr = new UserCompanyRole();
+                            ucr.setCompanyId(command.getCompanyId());
+                            ucr.setUserId(command.getUserId());
+                            ucr.setRole(it);
+                            ucr.setAdmin(false);
+                            return ucr;
+                        }).collect(Collectors.toList())).collectList()).then();
+                    }
+                    if(removeList.size() > 0) {
+                        mono = mono.then(userCompanyRoleRepository.deleteWhere(qUCR.companyId.eq(command.getCompanyId())
+                                .and(qUCR.userId.eq(command.getUserId()).and(qUCR.role.in(removeList))))).then();
+                    }
+                    return Mono.empty();
+                });
+        return updateDepartment.then(updateRole);
     }
 
 }
