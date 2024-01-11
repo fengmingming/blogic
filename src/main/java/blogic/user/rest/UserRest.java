@@ -20,6 +20,7 @@ import blogic.user.service.UserCompanyDto;
 import blogic.user.service.UserDepartmentDto;
 import blogic.user.service.UserService;
 import cn.hutool.core.map.MapUtil;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
@@ -145,6 +146,8 @@ public class UserRest {
         private List<String> departments;
         private List<RoleEnum> roles;
         private Boolean admin;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime joinTime;
     }
 
     @GetMapping("/Users")
@@ -191,6 +194,7 @@ public class UserRest {
                                 List<UserCompanyRole> roles = map.get(user.getId());
                                 user.setRoles(roles.stream().map(it -> it.getRole()).collect(Collectors.toList()));
                                 user.setAdmin(roles.stream().filter(it -> it.getAdmin()).findAny().isPresent());
+                                user.setJoinTime(roles.stream().map(it -> it.getCreateTime()).min((a, b) -> a.compareTo(b)).get());
                             });
                             return users;
                         });
@@ -231,6 +235,7 @@ public class UserRest {
            res.setPhone(user.getPhone());
            res.setRoles(tuple3.getT2().stream().map(it -> it.getRole()).collect(Collectors.toList()));
            res.setDepartments(tuple3.getT3().stream().map(it -> it.getDepartmentName()).collect(Collectors.toList()));
+           res.setJoinTime(tuple3.getT2().stream().map(it -> it.getCreateTime()).min((a, b) -> a.compareTo(b)).get());
            return ResVo.success(res);
         });
     }

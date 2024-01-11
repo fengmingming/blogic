@@ -1,5 +1,7 @@
 package blogic.company.rest;
 
+import blogic.company.domain.Department;
+import blogic.company.domain.QDepartment;
 import blogic.company.domain.repository.CompanyRepository;
 import blogic.company.domain.repository.DepartmentRepository;
 import blogic.company.service.CompanyService;
@@ -19,6 +21,8 @@ import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @RestController
 public class CompanyRest {
@@ -76,6 +80,16 @@ public class CompanyRest {
         @Length(max = 254)
         private String departmentName;
         private Long parentId;
+    }
+
+    @GetMapping("/Companies/{companyId}/Departments")
+    public Mono<ResVo<?>> findDepartments(@PathVariable("companyId")Long companyId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        QDepartment qD = QDepartment.department;
+        Mono<List<Department>> departmentsMomo = departmentRepository.query(q -> q.select(qD).from(qD).where(qD.companyId.eq(companyId).and(qD.deleted.isFalse()))).all().collectList();
+        return departmentsMomo.map(its -> {
+            return ResVo.success(its);
+        });
     }
 
     @PostMapping("/Companies/{companyId}/Departments")

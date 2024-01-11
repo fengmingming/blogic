@@ -10,6 +10,8 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
+import java.time.LocalDateTime;
+
 @Setter
 @Getter
 @Table("user_company_role")
@@ -25,6 +27,8 @@ public class UserCompanyRole extends ActiveRecord<UserCompanyRole, Long> {
     private RoleEnum role;
     @Column("admin")
     private Boolean admin;
+    @Column("create_time")
+    private LocalDateTime createTime;
 
     @Override
     protected ReactiveCrudRepository<UserCompanyRole, Long> findRepository() {

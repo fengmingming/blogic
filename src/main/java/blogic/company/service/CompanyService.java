@@ -80,7 +80,6 @@ public class CompanyService {
         @NotBlank
         @Length(max = 254)
         private String departmentName;
-        @NotNull
         private Long parentId;
     }
 

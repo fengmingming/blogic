@@ -25,6 +25,7 @@ create table blogic.user_company_role (
     company_id bigint not null comment '公司id',
     role varchar(100) not null comment '角色名称',
     admin tinyint not null default 0 comment '0否 1是 是否是公司管理者',
+    create_time datetime not null comment '创建时间',
     primary key (id),
     key user_company (user_id,company_id)
 )engine=INNODB default charset=utf8mb4 comment='用户在公司中的角色';
