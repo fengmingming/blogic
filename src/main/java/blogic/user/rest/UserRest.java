@@ -173,12 +173,12 @@ public class UserRest {
                         .all().collectList().map(uds -> {
                             Map<Long, List<UserDepartmentDto>> udMap = uds.stream().collect(Collectors.groupingBy(UserDepartmentDto::getUserId));
                             users.forEach(user -> {
-                                List<UserDepartmentDto> uds = udMap.get(user.getId())
-                                if(uds != null) {
-                                    user.setDepartments(uds.stream().map(ud -> {
+                                List<UserDepartmentDto> its = udMap.get(user.getId());
+                                if(its != null) {
+                                    user.setDepartments(its.stream().map(it -> {
                                         Department d = new Department();
-                                        d.setId(ud.getDepartmentId())
-                                        d.setDepartmentName(ud.getDepartmentName())
+                                        d.setId(it.getDepartmentId());
+                                        d.setDepartmentName(it.getDepartmentName());
                                         return d;
                                     }).collect(Collectors.toList()));
                                 }
