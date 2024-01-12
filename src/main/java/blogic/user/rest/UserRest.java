@@ -143,7 +143,7 @@ public class UserRest {
         private Long id;
         private String phone;
         private String name;
-        private List<String> departments;
+        private List<Department> departments;
         private List<RoleEnum> roles;
         private Boolean admin;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -173,9 +173,14 @@ public class UserRest {
                         .all().collectList().map(uds -> {
                             Map<Long, List<UserDepartmentDto>> udMap = uds.stream().collect(Collectors.groupingBy(UserDepartmentDto::getUserId));
                             users.forEach(user -> {
-                                List<UserDepartmentDto> its = udMap.get(user.getId());
-                                if(its != null) {
-                                    user.setDepartments(its.stream().map(it -> it.getDepartmentName()).collect(Collectors.toList()));
+                                List<UserDepartmentDto> uds = udMap.get(user.getId())
+                                if(uds != null) {
+                                    user.setDepartments(uds.stream().map(ud -> {
+                                        Department d = new Department();
+                                        d.setId(ud.getDepartmentId())
+                                        d.setDepartmentName(ud.getDepartmentName())
+                                        return d;
+                                    }).collect(Collectors.toList()));
                                 }
                             });
                             return users;
@@ -234,7 +239,7 @@ public class UserRest {
            res.setName(user.getName());
            res.setPhone(user.getPhone());
            res.setRoles(tuple3.getT2().stream().map(it -> it.getRole()).collect(Collectors.toList()));
-           res.setDepartments(tuple3.getT3().stream().map(it -> it.getDepartmentName()).collect(Collectors.toList()));
+           res.setDepartments(tuple3.getT3());
            res.setJoinTime(tuple3.getT2().stream().map(it -> it.getCreateTime()).min((a, b) -> a.compareTo(b)).get());
            return ResVo.success(res);
         });
