@@ -382,13 +382,19 @@ public class UserRest {
             }
             return userIdMono.flatMap(userIdOpt -> {
                 if(userIdOpt.isPresent()) {
-                    UserService.UserInvitationCommand command = new UserService.UserInvitationCommand();
-                    command.setCompanyId(companyId);
-                    command.setPhone(req.getPhone());
-                    command.setUserId(userIdOpt.get());
-                    command.setRoles(req.getRoles());
-                    command.setDepartmentIds(req.getDepartmentIds());
-                    return userService.createUserInvitation(command).then(Mono.just(ResVo.success()));
+                    return userService.validUserIdAndCompanyId(userIdOpt.get(), companyId).flatMap(exist -> {
+                        if(exist) {
+                            return Mono.deferContextual(contextView -> Mono.just(ResVo.error(3003, contextView.get(Locale.class), req.getPhone())));
+                        }else {
+                            UserService.UserInvitationCommand command = new UserService.UserInvitationCommand();
+                            command.setCompanyId(companyId);
+                            command.setPhone(req.getPhone());
+                            command.setUserId(userIdOpt.get());
+                            command.setRoles(req.getRoles());
+                            command.setDepartmentIds(req.getDepartmentIds());
+                            return userService.createUserInvitation(command).then(Mono.just(ResVo.success()));
+                        }
+                    });
                 }else {
                     return Mono.deferContextual(contextView -> Mono.just(ResVo.error(3002, contextView.get(Locale.class), req.getPhone())));
                 }
