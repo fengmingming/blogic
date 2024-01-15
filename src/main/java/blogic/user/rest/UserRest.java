@@ -15,11 +15,13 @@ import blogic.productline.product.domain.repository.ProductMemberRepository;
 import blogic.user.domain.*;
 import blogic.user.domain.repository.UserCompanyRoleRepository;
 import blogic.user.domain.repository.UserDepartmentRepository;
+import blogic.user.domain.repository.UserInvitationRepository;
 import blogic.user.domain.repository.UserRepository;
 import blogic.user.service.UserCompanyDto;
 import blogic.user.service.UserDepartmentDto;
 import blogic.user.service.UserService;
 import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
@@ -57,6 +59,8 @@ public class UserRest {
     private ProductMemberRepository productMemberRepository;
     @Autowired
     private DepartmentRepository departmentRepository;
+    @Autowired
+    private UserInvitationRepository userInvitationRepository;
 
     @Setter
     @Getter
@@ -281,6 +285,133 @@ public class UserRest {
                         JwtTokenUtil.getTokenFromAuthorization(authorization)).then(Mono.just(ResVo.success()));
             }
             return Mono.just(ResVo.error(403, locale));
+        });
+    }
+
+    @Setter
+    @Getter
+    public static class UserInvitationReq {
+        @NotBlank
+        @Length(max = 11, min = 11)
+        private String phone;
+        @NotNull
+        @Size(min = 1)
+        private List<RoleEnum> roles;
+        private List<Long> departmentIds;
+    }
+
+    @Setter
+    @Getter
+    public static class FindUserInvitationsReq {
+    }
+
+    @Setter
+    @Getter
+    public static class FindUserInvitationsRes extends UserInvitation {
+        private Collection<String> departmentNames;
+    }
+
+    @GetMapping("/Companies/{companyId}/UserInvitations")
+    public Mono<ResVo<?>> findUserInvitations(@PathVariable("companyId")Long companyId, UserCurrentContext context, FindUserInvitationsReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        QUserInvitation qUI = QUserInvitation.userInvitation;
+        Mono<List<FindUserInvitationsRes>> uisMono = userInvitationRepository.query(q -> q.select(Projections.bean(FindUserInvitationsRes.class, qUI))
+                .from(qUI).where(qUI.companyId.eq(companyId)).orderBy(qUI.id.desc())).all().collectList();
+        Function<List<FindUserInvitationsRes>, Mono<List<FindUserInvitationsRes>>> setDepartmentNames = (uis) -> {
+            Collection<Long> departmentIds = uis.stream().filter(it -> StrUtil.isNotBlank(it.getDepartments())).flatMap(it -> Arrays.stream(it.getDepartments().split(",")))
+                    .map(it -> Long.parseLong(it)).collect(Collectors.toSet());
+            if(departmentIds.size() > 0) {
+                return departmentRepository.findAllById(departmentIds).collectList().map(its -> {
+                    if(its.size() > 0) {
+                        Map<Long, String> map = its.stream().collect(Collectors.toMap(Department::getId, Department::getDepartmentName, (a,b) -> a));
+                        uis.forEach(ui -> {
+                            if(StrUtil.isNotBlank(ui.getDepartments())) {
+                                ui.setDepartmentNames(Arrays.stream(ui.getDepartments().split(",")).map(id -> Long.parseLong(id)).map(id -> map.get(id)).filter(name -> name != null).collect(Collectors.toSet()));
+                            }
+                        });
+                    }
+                    return uis;
+                });
+            }else {
+                return Mono.just(uis);
+            }
+        };
+        return uisMono.flatMap(setDepartmentNames).map(it -> ResVo.success(it));
+    }
+
+    @GetMapping("/Users/{userId}/UserInvitations")
+    public Mono<ResVo<?>> findUserInvitationsByUserId(@PathVariable("userId") Long userId, TokenInfo tokenInfo) {
+        tokenInfo.equalsUserIdOrThrowException(userId);
+        QUserInvitation qUI = QUserInvitation.userInvitation;
+        Mono<List<FindUserInvitationsRes>> uisMono = userInvitationRepository.query(q -> q.select(Projections.bean(FindUserInvitationsRes.class, qUI))
+                .from(qUI).where(qUI.userId.eq(userId)).orderBy(qUI.id.desc())).all().collectList();
+        Function<List<FindUserInvitationsRes>, Mono<List<FindUserInvitationsRes>>> setDepartmentNames = (uis) -> {
+            Collection<Long> departmentIds = uis.stream().filter(it -> StrUtil.isNotBlank(it.getDepartments())).flatMap(it -> Arrays.stream(it.getDepartments().split(",")))
+                    .map(it -> Long.parseLong(it)).collect(Collectors.toSet());
+            if(departmentIds.size() > 0) {
+                return departmentRepository.findAllById(departmentIds).collectList().map(its -> {
+                    if(its.size() > 0) {
+                        Map<Long, String> map = its.stream().collect(Collectors.toMap(Department::getId, Department::getDepartmentName, (a,b) -> a));
+                        uis.forEach(ui -> {
+                            if(StrUtil.isNotBlank(ui.getDepartments())) {
+                                ui.setDepartmentNames(Arrays.stream(ui.getDepartments().split(",")).map(id -> Long.parseLong(id)).map(id -> map.get(id)).filter(name -> name != null).collect(Collectors.toSet()));
+                            }
+                        });
+                        return uis;
+                    }else {
+                        return uis;
+                    }
+                });
+            }else {
+                return Mono.just(uis);
+            }
+        };
+        return uisMono.flatMap(setDepartmentNames).map(it -> ResVo.success(it));
+    }
+
+    @PostMapping(value = "/Companies/{companyId}/Users", params = "action=userInvitation")
+    public Mono<ResVo<?>> userInvitation(@PathVariable("companyId") Long companyId, UserCurrentContext context, @Valid @RequestBody UserInvitationReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Boolean> validMono = userInvitationRepository.existUserInvitation(companyId, req.getPhone());
+        QUser qUser = QUser.user;
+        Mono<Optional<Long>> userIdMono = userRepository.query(q -> q.select(qUser.id).from(qUser).where(qUser.phone.eq(req.getPhone()).and(qUser.deleted.isFalse())))
+                .one().map(it -> Optional.of(it)).switchIfEmpty(Mono.just(Optional.empty()));
+        return validMono.flatMap(it -> {
+            if(it) {
+                return Mono.deferContextual(contextView -> Mono.just(ResVo.error(3001, contextView.get(Locale.class), req.getPhone())));
+            }
+            return userIdMono.flatMap(userIdOpt -> {
+                if(userIdOpt.isPresent()) {
+                    UserService.UserInvitationCommand command = new UserService.UserInvitationCommand();
+                    command.setCompanyId(companyId);
+                    command.setPhone(req.getPhone());
+                    command.setUserId(userIdOpt.get());
+                    command.setRoles(req.getRoles());
+                    command.setDepartmentIds(req.getDepartmentIds());
+                    return userService.createUserInvitation(command).then(Mono.just(ResVo.success()));
+                }else {
+                    return Mono.deferContextual(contextView -> Mono.just(ResVo.error(3002, contextView.get(Locale.class), req.getPhone())));
+                }
+            });
+        });
+    }
+
+    @Setter
+    @Getter
+    public static class AcceptUserInvitationReq {
+        @NotNull
+        private Long userInvitationId;
+    }
+
+    @PutMapping(value = "/Users/{userId}", params = "action=acceptUserInvitation")
+    public Mono<ResVo<?>> acceptUserInvitation(@PathVariable("userId") Long userId, TokenInfo tokenInfo, @Valid AcceptUserInvitationReq req) {
+        tokenInfo.equalsUserIdOrThrowException(userId);
+        Mono<UserInvitation> validMono = userInvitationRepository.findById(req.getUserInvitationId());
+        return validMono.flatMap(it -> {
+            if(it.getStatusEnum() == UserInvitationStatusEnum.Inviting) {
+                return userService.acceptUserInvitation(it).then(Mono.just(ResVo.success()));
+            }
+            return Mono.just(ResVo.success());
         });
     }
 

@@ -3,15 +3,18 @@ package blogic.user.service;
 import blogic.company.domain.Company;
 import blogic.company.domain.QDepartment;
 import blogic.company.domain.repository.CompanyRepository;
+import blogic.core.exception.DataChangedException;
 import blogic.core.security.*;
 import blogic.user.domain.*;
 import blogic.user.domain.repository.UserCompanyRoleRepository;
 import blogic.user.domain.repository.UserDepartmentRepository;
+import blogic.user.domain.repository.UserInvitationRepository;
 import blogic.user.domain.repository.UserRepository;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -26,6 +29,7 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -46,6 +50,8 @@ public class UserService {
     private UserCurrentContextRepository userCurrentContextRepository;
     @Autowired
     private UserDepartmentRepository userDepartmentRepository;
+    @Autowired
+    private UserInvitationRepository userInvitationRepository;
 
     @Transactional
     public Mono<User> createUser(@Valid User user) {
@@ -195,6 +201,89 @@ public class UserService {
                     return Mono.empty();
                 });
         return updateDepartment.then(updateRole);
+    }
+
+    @Setter
+    @Getter
+    public static class UserInvitationCommand {
+        @NotNull
+        private Long companyId;
+        @NotNull
+        private Long userId;
+        @NotBlank
+        private String phone;
+        @NotNull
+        @Size(min = 1)
+        private List<RoleEnum> roles;
+        private List<Long> departmentIds;
+    }
+
+    /**
+     * 创建用户邀请
+     * */
+    @Transactional
+    public Mono<Void> createUserInvitation(@NotNull @Valid UserInvitationCommand command) {
+        UserInvitation invitation = new UserInvitation();
+        invitation.setCompanyId(command.getCompanyId());
+        invitation.setUserId(command.getUserId());
+        invitation.setPhone(command.getPhone());
+        invitation.setStatus(UserInvitationStatusEnum.Inviting.getCode());
+        invitation.setRoles(command.getRoles().stream().map(it -> it.name()).distinct().collect(Collectors.joining(",")));
+        if(CollectionUtil.isNotEmpty(command.getDepartmentIds())) {
+            invitation.setDepartments(command.getDepartmentIds().stream().distinct().map(it -> String.valueOf(it)).collect(Collectors.joining(",")));
+        }
+        invitation.setCreateTime(LocalDateTime.now());
+        return userInvitationRepository.save(invitation).then();
+    }
+
+    /**
+     * 接受用户邀请
+     */
+    @Transactional
+    public Mono<Void> acceptUserInvitation(@NotNull UserInvitation userInvitation) {
+        Mono<Boolean> existMono = this.validUserIdAndCompanyId(userInvitation.getUserId(), userInvitation.getCompanyId());
+        Mono<Void> userCompanyMono = Mono.defer(() -> {
+            List<UserCompanyRole> ucrList = Arrays.stream(userInvitation.getRoles().split(",")).map(it -> {
+                UserCompanyRole ucr = new UserCompanyRole();
+                ucr.setCompanyId(userInvitation.getCompanyId());
+                ucr.setUserId(userInvitation.getUserId());
+                ucr.setRole(RoleEnum.valueOf(it));
+                ucr.setAdmin(false);
+                ucr.setCreateTime(LocalDateTime.now());
+                return ucr;
+            }).collect(Collectors.toList());
+            return userCompanyRoleRepository.saveAll(ucrList).then();
+        });
+        Mono<Void> userDepartmentMono = Mono.defer(() -> {
+            if(StrUtil.isNotBlank(userInvitation.getDepartments())) {
+                List<UserDepartment> uds = Arrays.stream(userInvitation.getDepartments().split(",")).map(it -> Long.parseLong(it)).map(it -> {
+                    UserDepartment ud = new UserDepartment();
+                    ud.setUserId(userInvitation.getUserId());
+                    ud.setDepartmentId(it);
+                    return ud;
+                }).collect(Collectors.toList());
+                return userDepartmentRepository.saveAll(uds).then();
+            }
+            return Mono.empty();
+        });
+        Mono<Void> updateUserInvitationStatusMono = Mono.defer(() -> {
+            QUserInvitation qUI = QUserInvitation.userInvitation;
+            return userInvitationRepository.update(u -> u.set(qUI.status, UserInvitationStatusEnum.Agreed.getCode())
+                    .where(qUI.id.eq(userInvitation.getId()).and(qUI.status.eq(UserInvitationStatusEnum.Inviting.getCode()))))
+                    .flatMap(l -> {
+                        if(l > 0) {
+                            return Mono.empty();
+                        }
+                        return Mono.error(new DataChangedException());
+                    });
+        });
+        return existMono.flatMap(it -> {
+            if(it) {
+                return Mono.empty();
+            }else {
+                return updateUserInvitationStatusMono.then(userCompanyMono).then(userDepartmentMono);
+            }
+        });
     }
 
 }

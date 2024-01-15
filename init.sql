@@ -10,6 +10,20 @@ create table blogic.user (
     unique key phone (phone)
 )engine=INNODB default charset=utf8mb4 comment='用户表';
 
+CREATE TABLE blogic.user_invitation (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '用户邀请',
+    company_id BIGINT NOT NULL COMMENT '公司id',
+    phone VARCHAR(11) NOT NULL COMMENT '手机号',
+    user_id BIGINT NOT NULL COMMENT '用户id',
+    roles VARCHAR(254) NOT NULL COMMENT '角色',
+    status INT NOT NULL COMMENT '10 邀请中 90 已同意',
+    departments VARCHAR(254) NULL COMMENT '部门',
+    create_time DATETIME NOT NULL COMMENT '创建时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY company_id (company_id, user_id),
+    KEY user_id (user_id)
+)ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COMMENT='公司邀请用户加入信息表';
+
 create table blogic.company (
     id bigint not null auto_increment comment 'id',
     company_name varchar(254) not null comment '',
