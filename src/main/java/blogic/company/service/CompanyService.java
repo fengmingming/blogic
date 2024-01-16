@@ -53,6 +53,7 @@ public class CompanyService {
             ucr.setUserId(command.getUserId());
             ucr.setRole(RoleEnum.ROLE_MANAGER);
             ucr.setAdmin(true);
+            ucr.setCreateTime(LocalDateTime.now());
             return userCompanyRoleRepository.save(ucr);
         }).flatMap(it -> Mono.just(it.getCompanyId()));
     }

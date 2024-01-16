@@ -1,10 +1,14 @@
 package blogic.user.rest;
 
+import blogic.company.domain.Company;
 import blogic.company.domain.Department;
 import blogic.company.domain.QDepartment;
+import blogic.company.domain.repository.CompanyRepository;
 import blogic.company.domain.repository.DepartmentRepository;
 import blogic.core.exception.ForbiddenAccessException;
 import blogic.core.rest.ResVo;
+import blogic.core.rest.json.StringToArrayDeserializer;
+import blogic.core.rest.json.StringToNumberArrayDeserializer;
 import blogic.core.security.JwtTokenUtil;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
@@ -23,6 +27,7 @@ import blogic.user.service.UserService;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
@@ -61,6 +66,8 @@ public class UserRest {
     private DepartmentRepository departmentRepository;
     @Autowired
     private UserInvitationRepository userInvitationRepository;
+    @Autowired
+    private CompanyRepository companyRepository;
 
     @Setter
     @Getter
@@ -307,8 +314,20 @@ public class UserRest {
 
     @Setter
     @Getter
-    public static class FindUserInvitationsRes extends UserInvitation {
+    public static class FindUserInvitationsRes {
+        private Long id;
+        private Long companyId;
+        private String phone;
+        private Long userId;
+        @JsonSerialize(using = StringToArrayDeserializer.class)
+        private String roles;
+        @JsonSerialize(using = StringToNumberArrayDeserializer.class)
+        private String departments;
+        private Integer status;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime createTime;
         private Collection<String> departmentNames;
+        private String companyName;
     }
 
     @GetMapping("/Companies/{companyId}/UserInvitations")
@@ -366,7 +385,17 @@ public class UserRest {
                 return Mono.just(uis);
             }
         };
-        return uisMono.flatMap(setDepartmentNames).map(it -> ResVo.success(it));
+        Function<List<FindUserInvitationsRes>, Mono<List<FindUserInvitationsRes>>> setCompanyName = (uis) -> {
+            Collection<Long> companyIds = uis.stream().map(it -> it.getCompanyId()).collect(Collectors.toSet());
+            return companyRepository.findAllById(companyIds).collectList().map(companies -> {
+                Map<Long, String> map = companies.stream().collect(Collectors.toMap(Company::getId, Company::getCompanyName));
+                uis.forEach(ui -> {
+                    ui.setCompanyName(map.get(ui.getCompanyId()));
+                });
+                return uis;
+            });
+        };
+        return uisMono.flatMap(setDepartmentNames).flatMap(setCompanyName).map(it -> ResVo.success(it));
     }
 
     @PostMapping(value = "/Companies/{companyId}/UserInvitations")
@@ -402,6 +431,40 @@ public class UserRest {
         });
     }
 
+    @PutMapping(value = "/Companies/{companyId}/UserInvitations/{userInvitationId}", params = "action=cancel")
+    public Mono<ResVo<?>> cancelInvitation(@PathVariable("companyId") Long companyId, @PathVariable("userInvitationId") Long userInvitationId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        return userInvitationRepository.findById(userInvitationId).flatMap(it -> {
+            if(!it.getCompanyId().equals(companyId)) {
+                return Mono.error(new ForbiddenAccessException());
+            }
+            if(it.getStatusEnum() != UserInvitationStatusEnum.Inviting) {
+                return Mono.deferContextual(cv -> Mono.just(ResVo.error(3004, cv.get(Locale.class))));
+            }
+            return userService.cancelUserInvitation(userInvitationId).then(Mono.just(ResVo.success()));
+        });
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/UserInvitations/{userInvitationId}", params = "action=reInvite")
+    public Mono<ResVo<?>> reInvite(@PathVariable("companyId") Long companyId, @PathVariable("userInvitationId") Long userInvitationId, UserCurrentContext context) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        return userInvitationRepository.findById(userInvitationId).flatMap(it -> {
+            if(!it.getCompanyId().equals(companyId)) {
+                return Mono.error(new ForbiddenAccessException());
+            }
+            if(!Arrays.asList(UserInvitationStatusEnum.Reject, UserInvitationStatusEnum.Cancel).contains(it.getStatusEnum())) {
+                return Mono.deferContextual(cv -> Mono.just(ResVo.error(3005, cv.get(Locale.class), it.getStatusEnum().getCodeDesc())));
+            }
+            return userService.validUserIdAndCompanyId(it.getUserId(), companyId).flatMap(valid -> {
+               if(valid) {
+                   return Mono.deferContextual(cv -> Mono.just(ResVo.error(3003, cv.get(Locale.class), it.getPhone())));
+               }else {
+                   return userService.reInvite(userInvitationId).then(Mono.just(ResVo.success()));
+               }
+            });
+        });
+    }
+
     @PutMapping(value = "/Users/{userId}/UserInvitations/{userInvitationId}", params = "action=accept")
     public Mono<ResVo<?>> acceptUserInvitation(@PathVariable("userId") Long userId, @PathVariable("userInvitationId") Long userInvitationId, TokenInfo tokenInfo) {
         tokenInfo.equalsUserIdOrThrowException(userId);
@@ -411,6 +474,20 @@ public class UserRest {
                 return userService.acceptUserInvitation(it).then(Mono.just(ResVo.success()));
             }
             return Mono.just(ResVo.success());
+        });
+    }
+
+    @PutMapping(value = "/Users/{userId}/UserInvitations/{userInvitationId}", params = "action=reject")
+    public Mono<ResVo<?>> rejectUserInvitation(@PathVariable("userId") Long userId, @PathVariable("userInvitationId") Long userInvitationId, TokenInfo tokenInfo) {
+        tokenInfo.equalsUserIdOrThrowException(userId);
+        return userInvitationRepository.findById(userInvitationId).flatMap(it -> {
+            if(!it.getUserId().equals(userId)) {
+                return Mono.error(new ForbiddenAccessException());
+            }
+            if(it.getStatusEnum() != UserInvitationStatusEnum.Inviting) {
+                return Mono.deferContextual(cv -> Mono.just(ResVo.error(3004, cv.get(Locale.class))));
+            }
+            return userService.rejectUserInvitation(userInvitationId).then(Mono.just(ResVo.success()));
         });
     }
 

@@ -20,7 +20,7 @@ CREATE TABLE blogic.user_invitation (
     departments VARCHAR(254) NULL COMMENT '部门',
     create_time DATETIME NOT NULL COMMENT '创建时间',
     PRIMARY KEY (id),
-    UNIQUE KEY company_id (company_id, user_id),
+    UNIQUE KEY user_company (company_id, user_id),
     KEY user_id (user_id)
 )ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COMMENT='公司邀请用户加入信息表';
 

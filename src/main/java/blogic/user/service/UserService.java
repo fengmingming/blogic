@@ -3,6 +3,7 @@ package blogic.user.service;
 import blogic.company.domain.Company;
 import blogic.company.domain.QDepartment;
 import blogic.company.domain.repository.CompanyRepository;
+import blogic.core.MonoTool;
 import blogic.core.exception.DataChangedException;
 import blogic.core.security.*;
 import blogic.user.domain.*;
@@ -21,6 +22,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -72,6 +74,7 @@ public class UserService {
                 ucr.setUserId(tuple.getT1().getId());
                 ucr.setRole(RoleEnum.ROLE_MANAGER);
                 ucr.setCompanyId(tuple.getT2().getId());
+                ucr.setCreateTime(LocalDateTime.now());
                 return userCompanyRoleRepository.save(ucr).then(Mono.just(tuple.getT1()));
             });
     }
@@ -191,6 +194,7 @@ public class UserService {
                             ucr.setUserId(command.getUserId());
                             ucr.setRole(it);
                             ucr.setAdmin(false);
+                            ucr.setCreateTime(LocalDateTime.now());
                             return ucr;
                         }).collect(Collectors.toList())).collectList()).then();
                     }
@@ -284,6 +288,30 @@ public class UserService {
                 return updateUserInvitationStatusMono.then(userCompanyMono).then(userDepartmentMono);
             }
         });
+    }
+
+    @Transactional
+    public Mono<Void> cancelUserInvitation(long userInvitationId) {
+        QUserInvitation qUI = QUserInvitation.userInvitation;
+        return userInvitationRepository.update(u -> u.set(qUI.status, UserInvitationStatusEnum.Cancel.getCode())
+                .where(qUI.id.eq(userInvitationId).and(qUI.status.eq(UserInvitationStatusEnum.Inviting.getCode()))))
+                .flatMap(MonoTool.handleUpdateResult());
+    }
+
+    @Transactional
+    public Mono<Void> rejectUserInvitation(long userInvitationId) {
+        QUserInvitation qUI = QUserInvitation.userInvitation;
+        return userInvitationRepository.update(u -> u.set(qUI.status, UserInvitationStatusEnum.Reject.getCode())
+                        .where(qUI.id.eq(userInvitationId).and(qUI.status.eq(UserInvitationStatusEnum.Inviting.getCode()))))
+                .flatMap(MonoTool.handleUpdateResult());
+    }
+
+    @Transactional
+    public Mono<Void> reInvite(long userInvitationId) {
+        QUserInvitation qUI = QUserInvitation.userInvitation;
+        return userInvitationRepository.update(u -> u.set(qUI.status, UserInvitationStatusEnum.Inviting.getCode())
+                        .where(qUI.id.eq(userInvitationId).and(qUI.status.in(UserInvitationStatusEnum.Reject.getCode(), UserInvitationStatusEnum.Cancel.getCode()))))
+                .flatMap(MonoTool.handleUpdateResult());
     }
 
 }

@@ -7,6 +7,8 @@ public enum UserInvitationStatusEnum implements IDigitalizedEnum {
 
     Inviting(10, "邀请中"),
     Agreed(90, "已同意"),
+    Cancel(96, "已撤销"),
+    Reject(95, "已拒绝"),
     ;
 
     private int code;
