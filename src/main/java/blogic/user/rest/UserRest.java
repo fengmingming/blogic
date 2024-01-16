@@ -369,7 +369,7 @@ public class UserRest {
         return uisMono.flatMap(setDepartmentNames).map(it -> ResVo.success(it));
     }
 
-    @PostMapping(value = "/Companies/{companyId}/Users", params = "action=userInvitation")
+    @PostMapping(value = "/Companies/{companyId}/UserInvitations")
     public Mono<ResVo<?>> userInvitation(@PathVariable("companyId") Long companyId, UserCurrentContext context, @Valid @RequestBody UserInvitationReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
         Mono<Boolean> validMono = userInvitationRepository.existUserInvitation(companyId, req.getPhone());
@@ -402,17 +402,10 @@ public class UserRest {
         });
     }
 
-    @Setter
-    @Getter
-    public static class AcceptUserInvitationReq {
-        @NotNull
-        private Long userInvitationId;
-    }
-
-    @PutMapping(value = "/Users/{userId}", params = "action=acceptUserInvitation")
-    public Mono<ResVo<?>> acceptUserInvitation(@PathVariable("userId") Long userId, TokenInfo tokenInfo, @Valid AcceptUserInvitationReq req) {
+    @PutMapping(value = "/Users/{userId}/UserInvitations/{userInvitationId}", params = "action=accept")
+    public Mono<ResVo<?>> acceptUserInvitation(@PathVariable("userId") Long userId, @PathVariable("userInvitationId") Long userInvitationId, TokenInfo tokenInfo) {
         tokenInfo.equalsUserIdOrThrowException(userId);
-        Mono<UserInvitation> validMono = userInvitationRepository.findById(req.getUserInvitationId());
+        Mono<UserInvitation> validMono = userInvitationRepository.findById(userInvitationId);
         return validMono.flatMap(it -> {
             if(it.getStatusEnum() == UserInvitationStatusEnum.Inviting) {
                 return userService.acceptUserInvitation(it).then(Mono.just(ResVo.success()));
