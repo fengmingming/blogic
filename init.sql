@@ -33,6 +33,17 @@ create table blogic.company (
     primary key (id)
 )engine=innodb default charset=utf8mb4 comment='公司';
 
+create table blogic.user_company (
+    id bigint not null auto_increment comment 'id',
+    user_id bigint not null comment '用户id',
+    company_id bigint not null comment '公司id',
+    def tinyint not null default 0 comment '1默认 0非默认',
+    def_product_id bigint null comment '最后一次选择的产品id',
+    create_time datetime not null comment '创建时间',
+    primary key (id),
+    key user_id (user_id)
+)engine=INNODB default charset=utf8mb4 comment='用户公司信息表';
+
 create table blogic.user_company_role (
     id bigint not null auto_increment comment 'id',
     user_id bigint not null comment '用户id',
@@ -359,5 +370,12 @@ INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
       ('bug_env', 2, '灰度环境', NOW()),
       ('bug_env', 3, '生产环境', NOW()),
       ('bug_env', 4, '开发环境', NOW());
+
+INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
+      VALUES
+      ('userinvitation_status', 10, '邀请中', NOW()),
+      ('userinvitation_status', 90, '已同意', NOW()),
+      ('userinvitation_status', 96, '已撤销', NOW()),
+      ('userinvitation_status', 95, '已拒绝', NOW());
 
 

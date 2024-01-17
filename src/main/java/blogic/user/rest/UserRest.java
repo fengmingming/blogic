@@ -12,15 +12,13 @@ import blogic.core.rest.json.StringToNumberArrayDeserializer;
 import blogic.core.security.JwtTokenUtil;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
+import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.iteration.domain.QIterationMember;
 import blogic.productline.iteration.domain.repository.IterationMemberRepository;
 import blogic.productline.product.domain.QProductMember;
 import blogic.productline.product.domain.repository.ProductMemberRepository;
 import blogic.user.domain.*;
-import blogic.user.domain.repository.UserCompanyRoleRepository;
-import blogic.user.domain.repository.UserDepartmentRepository;
-import blogic.user.domain.repository.UserInvitationRepository;
-import blogic.user.domain.repository.UserRepository;
+import blogic.user.domain.repository.*;
 import blogic.user.service.UserCompanyDto;
 import blogic.user.service.UserDepartmentDto;
 import blogic.user.service.UserService;
@@ -32,9 +30,7 @@ import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -68,14 +64,25 @@ public class UserRest {
     private UserInvitationRepository userInvitationRepository;
     @Autowired
     private CompanyRepository companyRepository;
+    @Autowired
+    private ProductLineVerifier productLineVerifier;
+    @Autowired
+    private UserCompanyRepository userCompanyRepository;
 
     @Setter
     @Getter
     public static class CreateUserReq {
         @NotBlank
+        @Length(max = 11,min = 11)
         private String phone;
+        @NotBlank
+        @Length(max = 50,min = 1)
         private String name;
+        @NotBlank
+        @Length(max = 20,min = 6)
         private String password;
+        @Length(max = 200)
+        private String companyName;
     }
 
     @PostMapping("/Users")
@@ -85,7 +92,7 @@ public class UserRest {
         user.setName(req.getName());
         user.setPassword(req.getPassword());
         user.setCreateTime(LocalDateTime.now());
-        return userService.createUser(user).map(it -> ResVo.success());
+        return userService.createUser(user, req.getCompanyName()).map(it -> ResVo.success());
     }
 
     @Setter
@@ -288,8 +295,12 @@ public class UserRest {
         if(!tokenInfo.getUserId().equals(userId)) return Mono.error(new ForbiddenAccessException());//自己只能切换自己上下文
         return userService.validUserIdAndCompanyId(userId, req.getCompanyId()).flatMap(it -> {
             if(it) {
+                QUserCompany qUC = QUserCompany.userCompany;
                 return userService.switchUserCurrentContext(tokenInfo, req.getCompanyId(),
-                        JwtTokenUtil.getTokenFromAuthorization(authorization)).then(Mono.just(ResVo.success()));
+                        JwtTokenUtil.getTokenFromAuthorization(authorization))
+                        .then(userCompanyRepository.query(q -> q.select(qUC).from(qUC).where(qUC.userId.eq(tokenInfo.getUserId()).and(qUC.companyId.eq(req.getCompanyId()))))
+                                .one().map(uc -> ResVo.success(MapUtil.builder().put("defProductId", uc.getDefProductId()).build())))
+                        .defaultIfEmpty(ResVo.success(MapUtil.builder().put("defProductId", null).build()));
             }
             return Mono.just(ResVo.error(403, locale));
         });
@@ -489,6 +500,22 @@ public class UserRest {
             }
             return userService.rejectUserInvitation(userInvitationId).then(Mono.just(ResVo.success()));
         });
+    }
+
+    @Setter
+    @Getter
+    public static class UpdateDefProductReq {
+        @NotNull
+        private Long productId;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Users/{userId}", params = "action=setDefProduct")
+    public Mono<ResVo<?>> updateDefProduct(@PathVariable("companyId") Long companyId, @PathVariable("userId") Long userId,
+                                           UserCurrentContext context, TokenInfo tokenInfo, @RequestBody UpdateDefProductReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        return productLineVerifier.verifyProductOrThrowException(companyId, req.getProductId())
+                .then(userService.setDefProduct(userId, companyId, req.getProductId()))
+                .then(Mono.just(ResVo.success()));
     }
 
 }

@@ -7,10 +7,7 @@ import blogic.core.MonoTool;
 import blogic.core.exception.DataChangedException;
 import blogic.core.security.*;
 import blogic.user.domain.*;
-import blogic.user.domain.repository.UserCompanyRoleRepository;
-import blogic.user.domain.repository.UserDepartmentRepository;
-import blogic.user.domain.repository.UserInvitationRepository;
-import blogic.user.domain.repository.UserRepository;
+import blogic.user.domain.repository.*;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.BCrypt;
@@ -22,7 +19,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -54,29 +50,38 @@ public class UserService {
     private UserDepartmentRepository userDepartmentRepository;
     @Autowired
     private UserInvitationRepository userInvitationRepository;
+    @Autowired
+    private UserCompanyRepository userCompanyRepository;
 
     @Transactional
-    public Mono<User> createUser(@Valid User user) {
-        if(StrUtil.isNotBlank(user.getPassword())) {
+    public Mono<User> createUser(@Valid User user, String companyName) {
+        if (StrUtil.isNotBlank(user.getPassword())) {
             user.setPassword(BCrypt.hashpw(user.getPassword()));
         }
         user.setUpdateTime(user.getCreateTime());
-
         Company company = new Company();
-        company.setCompanyName("default company");
+        if(StrUtil.isNotBlank(companyName)) {
+            company.setCompanyName(companyName);
+        }else {
+            company.setCompanyName(user.getName());
+        }
         company.setCreateTime(LocalDateTime.now());
         company.setUpdateTime(LocalDateTime.now());
-
         return Mono.zip(userRepository.save(user), companyRepository.save(company))
-            .flatMap(tuple -> {
-                UserCompanyRole ucr = new UserCompanyRole();
-                ucr.setAdmin(true);
-                ucr.setUserId(tuple.getT1().getId());
-                ucr.setRole(RoleEnum.ROLE_MANAGER);
-                ucr.setCompanyId(tuple.getT2().getId());
-                ucr.setCreateTime(LocalDateTime.now());
-                return userCompanyRoleRepository.save(ucr).then(Mono.just(tuple.getT1()));
-            });
+                .flatMap(tuple -> {
+                    UserCompany uc = new UserCompany();
+                    uc.setUserId(tuple.getT1().getId());
+                    uc.setCompanyId(tuple.getT2().getId());
+                    uc.setDef(true);
+                    uc.setCreateTime(LocalDateTime.now());
+                    UserCompanyRole ucr = new UserCompanyRole();
+                    ucr.setAdmin(true);
+                    ucr.setUserId(tuple.getT1().getId());
+                    ucr.setRole(RoleEnum.ROLE_MANAGER);
+                    ucr.setCompanyId(tuple.getT2().getId());
+                    ucr.setCreateTime(LocalDateTime.now());
+                    return userCompanyRoleRepository.save(ucr).then(uc.save()).then(Mono.just(tuple.getT1()));
+                });
     }
 
     @Setter
@@ -105,18 +110,26 @@ public class UserService {
             return ucrs.stream().collect(Collectors.groupingBy(UserCompanyRole::getCompanyId));
         }).flatMapIterable(group -> group.entrySet()).flatMap(entry -> companyRepository.findById(entry.getKey())
                 .filter(it -> !it.getDeleted()).map(company -> {
-            UserCompanyDto userCompanyDto = new UserCompanyDto();
-            userCompanyDto.setCompanyId(company.getId());
-            userCompanyDto.setUserId(userId);
-            userCompanyDto.setCompanyName(company.getCompanyName());
-            userCompanyDto.setAdmin(entry.getValue().stream().filter(it -> it.getAdmin()).findFirst().isPresent());
-            userCompanyDto.setRoles(entry.getValue().stream().map(it -> it.getRole()).collect(Collectors.toList()));
-            return userCompanyDto;
-        }));
+                    UserCompanyDto userCompanyDto = new UserCompanyDto();
+                    userCompanyDto.setCompanyId(company.getId());
+                    userCompanyDto.setUserId(userId);
+                    userCompanyDto.setCompanyName(company.getCompanyName());
+                    userCompanyDto.setAdmin(entry.getValue().stream().filter(it -> it.getAdmin()).findFirst().isPresent());
+                    userCompanyDto.setRoles(entry.getValue().stream().map(it -> it.getRole()).collect(Collectors.toList()));
+                    return userCompanyDto;
+                })).flatMap(ucDto -> {
+                    QUserCompany qUC = QUserCompany.userCompany;
+                    return userCompanyRepository.query(q -> q.select(qUC).from(qUC).where(qUC.userId.eq(userId).and(qUC.companyId.eq(ucDto.getCompanyId()))))
+                            .one().map(it -> {
+                                ucDto.setDef(it.getDef());
+                                return ucDto;
+                            }).defaultIfEmpty(ucDto);
+        });
     }
 
     /**
      * 验证公司id是否属于用户id
+     *
      * @param userId
      * @param companyId
      * @return boolean true
@@ -126,16 +139,24 @@ public class UserService {
                 .filter(it -> it.equals(companyId)).count().map(it -> it > 0).switchIfEmpty(Mono.just(false));
     }
 
+    @Transactional
     public Mono<Void> switchUserCurrentContext(TokenInfo tokenInfo, Long companyId, String token) {
+        QUserCompany qUC = QUserCompany.userCompany;
+        Mono<Void> saveDefCompany = userCompanyRepository.resetAllDef(tokenInfo.getUserId())
+                .then(userCompanyRepository.query(q -> q.select(qUC).from(qUC).where(qUC.userId.eq(tokenInfo.getUserId()).and(qUC.companyId.eq(companyId)))).one()
+                        .flatMap(uc -> {
+                            uc.setDef(true);
+                            return userCompanyRepository.save(uc).then();
+                        }));
         return Mono.zip(companyRepository.findById(companyId), userCompanyRoleRepository.findByUserId(tokenInfo.getUserId())
-            .filter(it -> it.getCompanyId().equals(companyId)).map(it -> it.getRole()).collectList())
+                        .filter(it -> it.getCompanyId().equals(companyId)).map(it -> it.getRole()).collectList())
                 .flatMap(tuple -> {
                     Company company = tuple.getT1();
                     List<RoleEnum> roles = tuple.getT2();
                     UserCurrentContext context = UserCurrentContext.builder().token(token).companyId(company.getId())
                             .companyName(company.getCompanyName()).authorities(roles).build();
                     return userCurrentContextRepository.save(tokenInfo, context, jwtKeyProperties.getTimeout(), TimeUnit.MINUTES);
-                });
+                }).then(saveDefCompany);
     }
 
     @Setter
@@ -165,7 +186,7 @@ public class UserService {
                     List<Long> addList = CollectionUtil.subtractToList(command.getDepartmentIds(), existIds);
                     List<Long> removeList = CollectionUtil.subtractToList(existIds, command.getDepartmentIds());
                     Mono<Void> mono = Mono.empty();
-                    if(addList.size() > 0) {
+                    if (addList.size() > 0) {
                         mono = mono.then(userDepartmentRepository.saveAll(addList.stream().map(it -> {
                             UserDepartment userDepartment = new UserDepartment();
                             userDepartment.setDepartmentId(it);
@@ -173,7 +194,7 @@ public class UserService {
                             return userDepartment;
                         }).collect(Collectors.toList())).collectList()).then();
                     }
-                    if(removeList.size() > 0) {
+                    if (removeList.size() > 0) {
                         mono = mono.then(userDepartmentRepository.deleteWhere(qUD.userId.eq(command.getUserId()).and(qUD.departmentId.in(removeList)))).then();
                     }
                     return mono;
@@ -187,7 +208,7 @@ public class UserService {
                     List<RoleEnum> addList = CollectionUtil.subtractToList(command.getRoles(), existRoles);
                     List<RoleEnum> removeList = CollectionUtil.subtractToList(existRoles, command.getRoles());
                     Mono<Void> mono = Mono.empty();
-                    if(addList.size() > 0) {
+                    if (addList.size() > 0) {
                         mono = mono.then(userCompanyRoleRepository.saveAll(addList.stream().map(it -> {
                             UserCompanyRole ucr = new UserCompanyRole();
                             ucr.setCompanyId(command.getCompanyId());
@@ -198,11 +219,11 @@ public class UserService {
                             return ucr;
                         }).collect(Collectors.toList())).collectList()).then();
                     }
-                    if(removeList.size() > 0) {
+                    if (removeList.size() > 0) {
                         mono = mono.then(userCompanyRoleRepository.deleteWhere(qUCR.companyId.eq(command.getCompanyId())
                                 .and(qUCR.userId.eq(command.getUserId()).and(qUCR.role.in(removeList))))).then();
                     }
-                    return Mono.empty();
+                    return mono;
                 });
         return updateDepartment.then(updateRole);
     }
@@ -224,7 +245,7 @@ public class UserService {
 
     /**
      * 创建用户邀请
-     * */
+     */
     @Transactional
     public Mono<Void> createUserInvitation(@NotNull @Valid UserInvitationCommand command) {
         UserInvitation invitation = new UserInvitation();
@@ -233,7 +254,7 @@ public class UserService {
         invitation.setPhone(command.getPhone());
         invitation.setStatus(UserInvitationStatusEnum.Inviting.getCode());
         invitation.setRoles(command.getRoles().stream().map(it -> it.name()).distinct().collect(Collectors.joining(",")));
-        if(CollectionUtil.isNotEmpty(command.getDepartmentIds())) {
+        if (CollectionUtil.isNotEmpty(command.getDepartmentIds())) {
             invitation.setDepartments(command.getDepartmentIds().stream().distinct().map(it -> String.valueOf(it)).collect(Collectors.joining(",")));
         }
         invitation.setCreateTime(LocalDateTime.now());
@@ -259,7 +280,7 @@ public class UserService {
             return userCompanyRoleRepository.saveAll(ucrList).then();
         });
         Mono<Void> userDepartmentMono = Mono.defer(() -> {
-            if(StrUtil.isNotBlank(userInvitation.getDepartments())) {
+            if (StrUtil.isNotBlank(userInvitation.getDepartments())) {
                 List<UserDepartment> uds = Arrays.stream(userInvitation.getDepartments().split(",")).map(it -> Long.parseLong(it)).map(it -> {
                     UserDepartment ud = new UserDepartment();
                     ud.setUserId(userInvitation.getUserId());
@@ -273,18 +294,18 @@ public class UserService {
         Mono<Void> updateUserInvitationStatusMono = Mono.defer(() -> {
             QUserInvitation qUI = QUserInvitation.userInvitation;
             return userInvitationRepository.update(u -> u.set(qUI.status, UserInvitationStatusEnum.Agreed.getCode())
-                    .where(qUI.id.eq(userInvitation.getId()).and(qUI.status.eq(UserInvitationStatusEnum.Inviting.getCode()))))
+                            .where(qUI.id.eq(userInvitation.getId()).and(qUI.status.eq(UserInvitationStatusEnum.Inviting.getCode()))))
                     .flatMap(l -> {
-                        if(l > 0) {
+                        if (l > 0) {
                             return Mono.empty();
                         }
                         return Mono.error(new DataChangedException());
                     });
         });
         return existMono.flatMap(it -> {
-            if(it) {
+            if (it) {
                 return Mono.empty();
-            }else {
+            } else {
                 return updateUserInvitationStatusMono.then(userCompanyMono).then(userDepartmentMono);
             }
         });
@@ -294,7 +315,7 @@ public class UserService {
     public Mono<Void> cancelUserInvitation(long userInvitationId) {
         QUserInvitation qUI = QUserInvitation.userInvitation;
         return userInvitationRepository.update(u -> u.set(qUI.status, UserInvitationStatusEnum.Cancel.getCode())
-                .where(qUI.id.eq(userInvitationId).and(qUI.status.eq(UserInvitationStatusEnum.Inviting.getCode()))))
+                        .where(qUI.id.eq(userInvitationId).and(qUI.status.eq(UserInvitationStatusEnum.Inviting.getCode()))))
                 .flatMap(MonoTool.handleUpdateResult());
     }
 
@@ -312,6 +333,12 @@ public class UserService {
         return userInvitationRepository.update(u -> u.set(qUI.status, UserInvitationStatusEnum.Inviting.getCode())
                         .where(qUI.id.eq(userInvitationId).and(qUI.status.in(UserInvitationStatusEnum.Reject.getCode(), UserInvitationStatusEnum.Cancel.getCode()))))
                 .flatMap(MonoTool.handleUpdateResult());
+    }
+
+    @Transactional
+    public Mono<Void> setDefProduct(Long userId, Long companyId, Long productId) {
+        QUserCompany qUC = QUserCompany.userCompany;
+        return userCompanyRepository.update(u -> u.set(qUC.defProductId, productId).where(qUC.userId.eq(userId).and(qUC.companyId.eq(companyId)))).then();
     }
 
 }

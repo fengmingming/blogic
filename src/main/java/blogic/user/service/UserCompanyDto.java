@@ -14,7 +14,8 @@ public class UserCompanyDto {
     private Long userId;
     private Long companyId;
     private String companyName;
-    private boolean admin;
+    private Boolean admin;
+    private Boolean def;
     private List<RoleEnum> roles = new ArrayList<>();
 
 }
