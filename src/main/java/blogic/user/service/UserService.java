@@ -225,7 +225,7 @@ public class UserService {
                     }
                     if (removeList.size() > 0) {
                         mono = mono.then(userCompanyRoleRepository.deleteWhere(qUCR.companyId.eq(command.getCompanyId())
-                                .and(qUCR.userId.eq(command.getUserId()).and(qUCR.role.in(removeList.stream().map(it -> it.name()).collect(Collectors.toList())))))).then();
+                                .and(qUCR.userId.eq(command.getUserId()).and(qUCR.role.in(removeList))))).then();
                     }
                     return mono;
                 });
