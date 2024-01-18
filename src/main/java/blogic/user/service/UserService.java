@@ -204,9 +204,13 @@ public class UserService {
                         .from(qUCR)
                         .where(qUCR.userId.eq(command.getUserId()).and(qUCR.companyId.eq(command.getCompanyId())))).all().collectList()
                 .flatMap(ucrs -> {
+                    boolean admin = ucrs.stream().filter(it -> it.isAdmin()).findAny().isPresent();
                     List<RoleEnum> existRoles = ucrs.stream().map(it -> it.getRole()).collect(Collectors.toList());
                     List<RoleEnum> addList = CollectionUtil.subtractToList(command.getRoles(), existRoles);
                     List<RoleEnum> removeList = CollectionUtil.subtractToList(existRoles, command.getRoles());
+                    if(admin) {
+                        removeList.remove(RoleEnum.ROLE_MANAGER);
+                    }
                     Mono<Void> mono = Mono.empty();
                     if (addList.size() > 0) {
                         mono = mono.then(userCompanyRoleRepository.saveAll(addList.stream().map(it -> {
@@ -221,7 +225,7 @@ public class UserService {
                     }
                     if (removeList.size() > 0) {
                         mono = mono.then(userCompanyRoleRepository.deleteWhere(qUCR.companyId.eq(command.getCompanyId())
-                                .and(qUCR.userId.eq(command.getUserId()).and(qUCR.role.in(removeList))))).then();
+                                .and(qUCR.userId.eq(command.getUserId()).and(qUCR.role.in(removeList.stream().map(it -> it.name()).collect(Collectors.toSet())))))).then();
                     }
                     return mono;
                 });
