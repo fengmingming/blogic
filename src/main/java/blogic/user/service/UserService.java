@@ -281,7 +281,12 @@ public class UserService {
                 ucr.setCreateTime(LocalDateTime.now());
                 return ucr;
             }).collect(Collectors.toList());
-            return userCompanyRoleRepository.saveAll(ucrList).then();
+            UserCompany uc = new UserCompany();
+            uc.setUserId(userInvitation.getUserId());
+            uc.setCompanyId(userInvitation.getCompanyId());
+            uc.setDef(false);
+            uc.setCreateTime(LocalDateTime.now());
+            return userCompanyRoleRepository.saveAll(ucrList).then(userCompanyRepository.save(uc)).then();
         });
         Mono<Void> userDepartmentMono = Mono.defer(() -> {
             if (StrUtil.isNotBlank(userInvitation.getDepartments())) {
