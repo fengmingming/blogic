@@ -204,7 +204,7 @@ public class UserService {
                         .from(qUCR)
                         .where(qUCR.userId.eq(command.getUserId()).and(qUCR.companyId.eq(command.getCompanyId())))).all().collectList()
                 .flatMap(ucrs -> {
-                    boolean admin = ucrs.stream().filter(it -> it.isAdmin()).findAny().isPresent();
+                    boolean admin = ucrs.stream().filter(it -> it.getAdmin()).findAny().isPresent();
                     List<RoleEnum> existRoles = ucrs.stream().map(it -> it.getRole()).collect(Collectors.toList());
                     List<RoleEnum> addList = CollectionUtil.subtractToList(command.getRoles(), existRoles);
                     List<RoleEnum> removeList = CollectionUtil.subtractToList(existRoles, command.getRoles());
