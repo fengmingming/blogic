@@ -63,6 +63,8 @@ public class ProductRest {
         private Long createUserId;
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime createTime;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime updateTime;
         @Column("createUserName")
         private String createUserName;
     }

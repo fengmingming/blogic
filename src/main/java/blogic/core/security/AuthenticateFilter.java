@@ -13,12 +13,14 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -27,6 +29,7 @@ public class AuthenticateFilter implements WebFilter {
 
     static final String TOKEN_INFO_ATTRIBUTE_KEY = AuthenticateFilter.class.getName() + ".TOKEN_INFO";
     static final String USER_CURRENT_CONTEXT_ATTRIBUTE_KEY = AuthenticateFilter.class.getName() + ".USER_CURRENT_CONTEXT";
+
     private final RoleAndPermissionsRepository roleAndPermissionsRepository;
     private final PermitUrlRepository permitUrlRepository;
     private final JwtKeyProperties jwtKeyProperties;
@@ -37,9 +40,15 @@ public class AuthenticateFilter implements WebFilter {
         ServerHttpRequest request = exchange.getRequest();
         String funcUrl = buildFuncUrl(request.getMethod().name(), request.getPath().value(), request.getQueryParams());
         FuncTrees reqFT = FuncTrees.buildFuncTrees(Arrays.asList(funcUrl));
+        Function<Context, Context> setContextF = (c) -> {
+            Context nc = Context.of(c);
+            nc.put(UserCurrentContext.class, exchange.getAttribute(USER_CURRENT_CONTEXT_ATTRIBUTE_KEY));
+            nc.put(TokenInfo.class, exchange.getAttribute(TOKEN_INFO_ATTRIBUTE_KEY));
+            return nc;
+        };
         Mono<Void> authenticateMono = authenticate(exchange, reqFT).switchIfEmpty(Mono.just(false)).flatMap(it -> {
             if(it) {
-                return chain.filter(exchange);
+                return chain.filter(exchange).contextWrite(setContextF);
             }else {
                 return Mono.error(new ForbiddenAccessException());
             }

@@ -83,6 +83,7 @@ public class ProductService {
         return productMono.doOnNext(it -> {
             it.setProductName(command.getProductName());
             it.setProductDesc(command.getProductDesc());
+            it.setUpdateTime(LocalDateTime.now());
         })
         .flatMap(it -> productRepository.save(it))
         .flatMap(p -> {
