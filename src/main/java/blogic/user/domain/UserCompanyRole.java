@@ -24,11 +24,15 @@ public class UserCompanyRole extends ActiveRecord<UserCompanyRole, Long> {
     @Column("company_id")
     private Long companyId;
     @Column("role")
-    private RoleEnum role;
+    private String role;
     @Column("admin")
     private Boolean admin;
     @Column("create_time")
     private LocalDateTime createTime;
+
+    public RoleEnum getRoleEnum() {
+        return RoleEnum.valueOf(getRole());
+    }
 
     @Override
     protected ReactiveCrudRepository<UserCompanyRole, Long> findRepository() {

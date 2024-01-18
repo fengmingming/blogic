@@ -215,7 +215,7 @@ public class UserRest {
                             Map<Long, List<UserCompanyRole>> map = ucrs.stream().collect(Collectors.groupingBy(UserCompanyRole::getUserId));
                             users.forEach(user -> {
                                 List<UserCompanyRole> roles = map.get(user.getId());
-                                user.setRoles(roles.stream().map(it -> it.getRole()).collect(Collectors.toList()));
+                                user.setRoles(roles.stream().map(it -> it.getRoleEnum()).collect(Collectors.toList()));
                                 user.setAdmin(roles.stream().filter(it -> it.getAdmin()).findAny().isPresent());
                                 user.setJoinTime(roles.stream().map(it -> it.getCreateTime()).min((a, b) -> a.compareTo(b)).get());
                             });
@@ -256,7 +256,7 @@ public class UserRest {
            res.setId(user.getId());
            res.setName(user.getName());
            res.setPhone(user.getPhone());
-           res.setRoles(tuple3.getT2().stream().map(it -> it.getRole()).collect(Collectors.toList()));
+           res.setRoles(tuple3.getT2().stream().map(it -> it.getRoleEnum()).collect(Collectors.toList()));
            res.setDepartments(tuple3.getT3());
            res.setJoinTime(tuple3.getT2().stream().map(it -> it.getCreateTime()).min((a, b) -> a.compareTo(b)).get());
            return ResVo.success(res);

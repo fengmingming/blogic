@@ -77,7 +77,7 @@ public class UserService {
                     UserCompanyRole ucr = new UserCompanyRole();
                     ucr.setAdmin(true);
                     ucr.setUserId(tuple.getT1().getId());
-                    ucr.setRole(RoleEnum.ROLE_MANAGER);
+                    ucr.setRole(RoleEnum.ROLE_MANAGER.name());
                     ucr.setCompanyId(tuple.getT2().getId());
                     ucr.setCreateTime(LocalDateTime.now());
                     return userCompanyRoleRepository.save(ucr).then(uc.save()).then(Mono.just(tuple.getT1()));
@@ -115,7 +115,7 @@ public class UserService {
                     userCompanyDto.setUserId(userId);
                     userCompanyDto.setCompanyName(company.getCompanyName());
                     userCompanyDto.setAdmin(entry.getValue().stream().filter(it -> it.getAdmin()).findFirst().isPresent());
-                    userCompanyDto.setRoles(entry.getValue().stream().map(it -> it.getRole()).collect(Collectors.toList()));
+                    userCompanyDto.setRoles(entry.getValue().stream().map(it -> it.getRoleEnum()).collect(Collectors.toList()));
                     return userCompanyDto;
                 })).flatMap(ucDto -> {
                     QUserCompany qUC = QUserCompany.userCompany;
@@ -149,7 +149,7 @@ public class UserService {
                             return userCompanyRepository.save(uc).then();
                         }));
         return Mono.zip(companyRepository.findById(companyId), userCompanyRoleRepository.findByUserId(tokenInfo.getUserId())
-                        .filter(it -> it.getCompanyId().equals(companyId)).map(it -> it.getRole()).collectList())
+                        .filter(it -> it.getCompanyId().equals(companyId)).map(it -> it.getRoleEnum()).collectList())
                 .flatMap(tuple -> {
                     Company company = tuple.getT1();
                     List<RoleEnum> roles = tuple.getT2();
@@ -205,7 +205,7 @@ public class UserService {
                         .where(qUCR.userId.eq(command.getUserId()).and(qUCR.companyId.eq(command.getCompanyId())))).all().collectList()
                 .flatMap(ucrs -> {
                     boolean admin = ucrs.stream().filter(it -> it.getAdmin()).findAny().isPresent();
-                    List<RoleEnum> existRoles = ucrs.stream().map(it -> it.getRole()).collect(Collectors.toList());
+                    List<RoleEnum> existRoles = ucrs.stream().map(it -> it.getRoleEnum()).collect(Collectors.toList());
                     List<RoleEnum> addList = CollectionUtil.subtractToList(command.getRoles(), existRoles);
                     List<RoleEnum> removeList = CollectionUtil.subtractToList(existRoles, command.getRoles());
                     if(admin) {
@@ -217,7 +217,7 @@ public class UserService {
                             UserCompanyRole ucr = new UserCompanyRole();
                             ucr.setCompanyId(command.getCompanyId());
                             ucr.setUserId(command.getUserId());
-                            ucr.setRole(it);
+                            ucr.setRole(it.name());
                             ucr.setAdmin(false);
                             ucr.setCreateTime(LocalDateTime.now());
                             return ucr;
@@ -225,7 +225,7 @@ public class UserService {
                     }
                     if (removeList.size() > 0) {
                         mono = mono.then(userCompanyRoleRepository.deleteWhere(qUCR.companyId.eq(command.getCompanyId())
-                                .and(qUCR.userId.eq(command.getUserId()).and(qUCR.role.in(removeList))))).then();
+                                .and(qUCR.userId.eq(command.getUserId()).and(qUCR.role.in(removeList.stream().map(it -> it.name()).collect(Collectors.toList())))))).then();
                     }
                     return mono;
                 });
@@ -276,7 +276,7 @@ public class UserService {
                 UserCompanyRole ucr = new UserCompanyRole();
                 ucr.setCompanyId(userInvitation.getCompanyId());
                 ucr.setUserId(userInvitation.getUserId());
-                ucr.setRole(RoleEnum.valueOf(it));
+                ucr.setRole(it);
                 ucr.setAdmin(false);
                 ucr.setCreateTime(LocalDateTime.now());
                 return ucr;

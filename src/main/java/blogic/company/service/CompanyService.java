@@ -51,7 +51,7 @@ public class CompanyService {
             UserCompanyRole ucr = new UserCompanyRole();
             ucr.setCompanyId(it.getId());
             ucr.setUserId(command.getUserId());
-            ucr.setRole(RoleEnum.ROLE_MANAGER);
+            ucr.setRole(RoleEnum.ROLE_MANAGER.name());
             ucr.setAdmin(true);
             ucr.setCreateTime(LocalDateTime.now());
             return userCompanyRoleRepository.save(ucr);
