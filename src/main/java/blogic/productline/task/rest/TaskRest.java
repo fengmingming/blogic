@@ -387,4 +387,27 @@ public class TaskRest {
         });
     }
 
+    @Setter
+    @Getter
+    public static class StartTaskReq {
+        @NotNull
+        private Long currentUserId;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime startTime;
+        @NotNull
+        @Min(0)
+        private Integer overallTime;
+        @NotNull
+        @Min(0)
+        private Integer consumeTime;
+        private String remark;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=start")
+    public Mono<Void> startTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
+                                @PathVariable("taskId")Long taskId, TokenInfo token, UserCurrentContext context,
+                                @RequestBody @Valid StartTaskReq req) {
+        return null;
+    }
+
 }

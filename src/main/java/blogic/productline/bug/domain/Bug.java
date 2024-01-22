@@ -13,6 +13,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Setter
@@ -108,6 +109,34 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
     public BugStatusEnum getStatusEnum() {
         if(getStatus() == null) return null;
         return BugStatusEnum.findByCode(getStatus());
+    }
+
+    /**
+     * 确认
+     * */
+    public void confirm(Long toUserId, Integer butType, Integer priority, String remark) {
+
+    }
+
+    /**
+     * 指派
+     * */
+    public void appoint(Long toUserId, String remark) {
+
+    }
+
+    /**
+     * 解决
+     * */
+    public void fix(Integer fixSolution, String fixVersion, LocalDateTime fixTime, Long toUserId, String remark) {
+
+    }
+
+    /**
+     * 关闭
+     * */
+    public void closeBug() {
+
     }
 
 }

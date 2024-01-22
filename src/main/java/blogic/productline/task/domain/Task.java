@@ -15,6 +15,7 @@ import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Setter
@@ -120,6 +121,35 @@ public class Task extends ActiveRecord<Task, Long> implements LogicConsistencyPr
             this.completeTime = null;
             this.completeUserId = null;
         }
+    }
+
+    public void appointTaskExecutor(Long toUserId, Integer consumeTime, String remark) {
+        this.setCurrentUserId(toUserId);
+        //TODO 记录日志
+    }
+
+    public void startTask(Long toUserId, LocalDateTime startTime, Integer overallTime, Integer consumeTime, String remark) {
+
+    }
+
+    public void completeTask(Long toUserId, Integer consumeTime, LocalDateTime completeTime, String remark) {
+
+    }
+
+    public void cancelTask(String reason) {
+
+    }
+
+    public void pauseTask(String reason) {
+
+    }
+
+    public void resumeTask(String reason) {
+
+    }
+
+    public void recordDailyPaper(List<DailyPaper> dailyPapers) {
+
     }
 
 }

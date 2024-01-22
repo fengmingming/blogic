@@ -7,6 +7,7 @@ import blogic.core.validation.DTOLogicValid;
 import blogic.productline.task.domain.Task;
 import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -150,6 +151,29 @@ public class TaskService {
             task.setPriority(command.getPriority());
             task.setUpdateTime(LocalDateTime.now());
         }).flatMap(task -> taskRepository.save(task));
+    }
+
+    @Setter
+    @Getter
+    public static class StartTaskCommand {
+        @NotNull
+        private Long taskId;
+        @NotNull
+        private Long currentUserId;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime startTime;
+        @NotNull
+        @Min(0)
+        private Integer overallTime;
+        @NotNull
+        @Min(0)
+        private Integer consumeTime;
+        private String remark;
+    }
+
+    @Transactional
+    public Mono<Void> startTask(@NotNull @Valid StartTaskCommand command) {
+        return null;
     }
 
 }
