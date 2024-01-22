@@ -34,6 +34,8 @@ public class Task extends ActiveRecord<Task, Long> implements LogicConsistencyPr
     private String taskName;
     @Column("task_desc")
     private String taskDesc;
+    @Column("parent_id")
+    private Long parentId;
     @Column("status")
     private Integer status;
     @Column("current_user_id")

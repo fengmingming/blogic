@@ -5,7 +5,10 @@ import blogic.company.domain.QDepartment;
 import blogic.company.domain.repository.CompanyRepository;
 import blogic.core.MonoTool;
 import blogic.core.exception.DataChangedException;
+import blogic.core.exception.IllegalArgumentException;
 import blogic.core.security.*;
+import blogic.core.validation.DTOLogicConsistencyVerifier;
+import blogic.core.validation.DTOLogicValid;
 import blogic.user.domain.*;
 import blogic.user.domain.repository.*;
 import cn.hutool.core.collection.CollectionUtil;
@@ -86,17 +89,31 @@ public class UserService {
 
     @Setter
     @Getter
-    public static class UpdateUserCommand {
+    @DTOLogicValid
+    public static class UpdateUserCommand implements DTOLogicConsistencyVerifier {
         @NotNull
         private Long userId;
         @Length(max = 100)
         private String name;
+        private String newPassword;
+        private String oldPassword;
+
+        @Override
+        public void verifyLogicConsistency() throws IllegalArgumentException {
+            if(StrUtil.isNotBlank(newPassword) && StrUtil.isBlank(oldPassword)) {
+                throw new IllegalArgumentException("oldPassword and newPassword is all blank");
+            }
+        }
+
     }
 
     @Transactional
     public Mono<User> updateUser(@Valid UpdateUserCommand com) {
         return userRepository.findById(com.getUserId()).doOnNext(user -> {
             user.setName(com.getName());
+            if(StrUtil.isNotBlank(com.getNewPassword())) {
+                user.updatePassword(com.getOldPassword(), com.getNewPassword());
+            }
         }).flatMap(user -> userRepository.save(user));
     }
 

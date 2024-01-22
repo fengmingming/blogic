@@ -6,12 +6,15 @@ import blogic.company.domain.QDepartment;
 import blogic.company.domain.repository.CompanyRepository;
 import blogic.company.domain.repository.DepartmentRepository;
 import blogic.core.exception.ForbiddenAccessException;
+import blogic.core.exception.IllegalArgumentException;
 import blogic.core.rest.ResVo;
 import blogic.core.rest.json.StringToArrayDeserializer;
 import blogic.core.rest.json.StringToNumberArrayDeserializer;
 import blogic.core.security.JwtTokenUtil;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
+import blogic.core.validation.DTOLogicConsistencyVerifier;
+import blogic.core.validation.DTOLogicValid;
 import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.iteration.domain.QIterationMember;
 import blogic.productline.iteration.domain.repository.IterationMemberRepository;
@@ -30,7 +33,9 @@ import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -97,9 +102,20 @@ public class UserRest {
 
     @Setter
     @Getter
-    public static class UpdateUserReq {
+    @DTOLogicValid
+    public static class UpdateUserReq implements DTOLogicConsistencyVerifier {
         @Length(max = 100)
         private String name;
+        private String newPassword;
+        private String oldPassword;
+
+        @Override
+        public void verifyLogicConsistency() throws IllegalArgumentException {
+            if(StrUtil.isNotBlank(newPassword) && StrUtil.isBlank(oldPassword)) {
+                throw new IllegalArgumentException("oldPassword and newPassword is all blank");
+            }
+        }
+
     }
 
     @PutMapping("/Users/{userId}")

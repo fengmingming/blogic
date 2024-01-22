@@ -4,7 +4,7 @@ import blogic.core.exception.AbstractCodedException;
 
 public class LogicConsistencyException extends AbstractCodedException {
 
-    public LogicConsistencyException(String message) {
+    public LogicConsistencyException(Object message) {
         super(1007, message);
     }
 

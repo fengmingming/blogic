@@ -7,7 +7,7 @@ public class BExecConstraintException extends AbstractCodedException {
     }
 
     public BExecConstraintException(Object templateArg) {
-        super(1007, null, false, new Object[]{templateArg});
+        super(1007, templateArg);
     }
 
 }

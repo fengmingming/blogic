@@ -41,6 +41,7 @@ public class TaskService {
         @Length(max = 254)
         private String taskName;
         private String taskDesc;
+        private Long parentId;
         private Long currentUserId;
         @NotNull
         private Integer priority;
@@ -58,6 +59,7 @@ public class TaskService {
         task.setRequirementId(command.getRequirementId());
         task.setTaskName(command.getTaskName());
         task.setTaskDesc(command.getTaskDesc());
+        task.setParentId(command.getParentId());
         task.setStatusEnum(TaskStatusEnum.NotStarted);
         task.setCurrentUserId(command.getCurrentUserId());
         task.setPriority(command.getPriority());

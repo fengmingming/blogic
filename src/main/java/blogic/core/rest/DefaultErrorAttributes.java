@@ -31,7 +31,7 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
         }
         Map<String, Object> result = new HashMap<>();
         if(e instanceof CodedException ce) {
-            log.warn("", e);
+            log.warn("", ce);
             result.put("code", ce.getCode());
         }else {
             log.error("", e);

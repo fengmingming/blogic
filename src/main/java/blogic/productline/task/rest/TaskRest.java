@@ -255,6 +255,7 @@ public class TaskRest {
         @Length(max = 254)
         private String taskName;
         private String taskDesc;
+        private Long parentId;
         @Max(4)
         @Min(1)
         @NotNull
@@ -269,7 +270,7 @@ public class TaskRest {
     public Mono<ResVo<?>> createTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
                                      TokenInfo token, UserCurrentContext context, @RequestBody @Valid CreateTaskReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
-        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, req.getRequirementId(), req.getIterationId(), null);
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, req.getRequirementId(), req.getIterationId(), req.getParentId());
         Mono<Void> userVerifyMono = Mono.defer(() -> {
             if(req.getCurrentUserId() != null) {
                 return productLineVerifier.containsUserOrThrowException(productId, req.getCurrentUserId());
@@ -288,6 +289,7 @@ public class TaskRest {
             command.setOverallTime(req.getOverallTime());
             command.setCreateUserId(token.getUserId());
             command.setCurrentUserId(req.getCurrentUserId());
+            command.setParentId(req.getParentId());
             return command;
         })).flatMap(it -> {
            return taskService.createTask(it);

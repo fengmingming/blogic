@@ -189,6 +189,7 @@ create table blogic.task(
     product_id bigint not null comment '产品id',
     task_name varchar(254) not null comment '任务名称',
     task_desc text null comment '任务描述',
+    parent_id bigint null comment '父任务',
     status int not null comment '任务状态 10未开始 20进行中 30已完成 40已取消',
     current_user_id bigint null comment '指派给',
     complete_user_id bigint null comment '完成用户id',
