@@ -1,11 +1,14 @@
 package blogic.productline.task.domain;
 
+import blogic.changerecord.domain.ChangeRecord;
+import blogic.changerecord.domain.KeyTypeEnum;
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
 import blogic.core.domain.LogicConsistencyException;
 import blogic.core.domain.LogicConsistencyProcessor;
 import blogic.core.enums.IDigitalizedEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
+import cn.hutool.core.util.StrUtil;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
@@ -123,13 +126,32 @@ public class Task extends ActiveRecord<Task, Long> implements LogicConsistencyPr
         }
     }
 
-    public void appointTaskExecutor(Long toUserId, Integer consumeTime, String remark) {
+    public ChangeRecord appointTaskExecutor(Long toUserId, Integer consumeTime, String remark) {
         this.setCurrentUserId(toUserId);
-        //TODO 记录日志
+        this.setConsumeTime(consumeTime + getConsumeTime());
+        StringBuilder desc = new StringBuilder("指派操作：");
+        desc.append(String.format("指派给{User:%d}。", toUserId));
+        desc.append("增加消费时间" + consumeTime + "。");
+        if(StrUtil.isNotBlank(remark)) {
+            desc.append("增加备注。");
+        }
+        return buildChangeRecord(desc.toString(), remark);
     }
 
-    public void startTask(Long toUserId, LocalDateTime startTime, Integer overallTime, Integer consumeTime, String remark) {
-
+    public ChangeRecord startTask(Long toUserId, LocalDateTime startTime, Integer overallTime, Integer consumeTime, String remark) {
+        this.setCurrentUserId(toUserId);
+        this.setStartTime(startTime);
+        this.setOverallTime(overallTime);
+        this.setConsumeTime(consumeTime);
+        this.setStatus(TaskStatusEnum.InProgress.getCode());
+        StringBuilder desc = new StringBuilder("开始任务操作：");
+        desc.append(String.format("指派给{User:%d}。", toUserId));
+        desc.append("设置开始时间。");
+        desc.append(String.format("设置总时间%d,消费时间%d。", overallTime, consumeTime));
+        if(StrUtil.isNotBlank(remark)) {
+            desc.append("增加备注。");
+        }
+        return buildChangeRecord(desc.toString(), remark);
     }
 
     public void completeTask(Long toUserId, Integer consumeTime, LocalDateTime completeTime, String remark) {
@@ -150,6 +172,10 @@ public class Task extends ActiveRecord<Task, Long> implements LogicConsistencyPr
 
     public void recordDailyPaper(List<DailyPaper> dailyPapers) {
 
+    }
+
+    protected ChangeRecord buildChangeRecord(String desc, String remark) {
+        return ChangeRecord.builder().keyType(KeyTypeEnum.Task.getCode()).primaryKey(getId()).operDesc(desc).note(remark).createTime(LocalDateTime.now()).build();
     }
 
 }
