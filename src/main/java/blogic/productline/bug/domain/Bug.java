@@ -1,10 +1,14 @@
 package blogic.productline.bug.domain;
 
+import blogic.changerecord.domain.ChangeRecord;
+import blogic.changerecord.domain.KeyTypeEnum;
+import blogic.core.ObjectsTool;
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
 import blogic.core.domain.LogicConsistencyException;
 import blogic.core.domain.LogicConsistencyProcessor;
 import blogic.productline.bug.domain.repository.BugRepository;
+import blogic.user.domain.User;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -55,6 +59,8 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
     private Long fixUserId;
     @Column("fix_solution")
     private Integer fixSolution;
+    @Column("fix_time")
+    private LocalDateTime fixTime;
     @Column("fix_version")
     private String fixVersion;
     @Column("create_user_id")
@@ -114,29 +120,36 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
     /**
      * 确认
      * */
-    public void confirm(Long toUserId, Integer butType, Integer priority, String remark) {
-
+    public void confirm(User toUser, Integer bugType, Integer priority) {
+        ObjectsTool.requireNonNull(toUser, bugType, priority);
+        this.setCurrentUserId(toUser.getId());
+        this.setBugType(bugType);
+        this.setPriority(priority);
     }
 
     /**
      * 指派
      * */
-    public void appoint(Long toUserId, String remark) {
-
+    public void appoint(User toUser) {
+        this.setCurrentUserId(toUser.getId());
     }
 
     /**
      * 解决
      * */
-    public void fix(Integer fixSolution, String fixVersion, LocalDateTime fixTime, Long toUserId, String remark) {
-
+    public void fix(Integer fixSolution, String fixVersion, LocalDateTime fixTime, Long toUserId) {
+        this.setFixSolution(fixSolution);
+        this.setFixVersion(fixVersion);
+        this.setStatus(BugStatusEnum.solved.getCode());
+        this.setFixTime(fixTime);
+        this.setCurrentUserId(toUserId);
     }
 
     /**
      * 关闭
      * */
     public void closeBug() {
-
+        this.setStatus(BugStatusEnum.Closed.getCode());
     }
 
 }

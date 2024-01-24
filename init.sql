@@ -251,6 +251,7 @@ create table blogic.bug (
     current_user_id bigint null comment '当前指派人',
     fix_user_id bigint null comment 'bug解决人',
     fix_solution int null comment '解决方案 字典 bug_fix_solution',
+    fix_time datetime null comment '修复时间',
     fix_version varchar(50) null comment '解决方案',
     create_user_id bigint not null comment '创建用户id',
     create_time datetime not null comment '创建时间',
@@ -311,8 +312,9 @@ INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
       VALUES
       ('task_status', 10, '未开始', NOW()),
       ('task_status', 20, '进行中', NOW()),
-      ('task_status', 30, '已完成', NOW()),
-      ('task_status', 40, '已取消', NOW());
+      ('task_status', 30, '暂停中', NOW()),
+      ('task_status', 90, '已完成', NOW()),
+      ('task_status', 95, '已取消', NOW());
 INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
       VALUES
       ('testcase_status', 10, '未开始', NOW()),

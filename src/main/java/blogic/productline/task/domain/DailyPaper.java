@@ -12,5 +12,6 @@ public class DailyPaper {
     private LocalDate date;
     private Integer consumeTime;
     private Integer remainTime;
+    private String remark;
 
 }

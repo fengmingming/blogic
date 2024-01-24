@@ -7,7 +7,7 @@ spring:
   webflux:
     basePath: /blogic
   messages:
-    basename: codedException
+    basename: codedException,changeRecord
   r2dbc:
     url: r2dbc:mysql://127.0.0.1:3306/blogic?serverZoneId=Asia/Shanghai&characterEncoding=UTF-8&useUnicode=true
     username: root

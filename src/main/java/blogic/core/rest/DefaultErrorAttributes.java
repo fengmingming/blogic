@@ -31,10 +31,10 @@ public class DefaultErrorAttributes extends org.springframework.boot.web.reactiv
         }
         Map<String, Object> result = new HashMap<>();
         if(e instanceof CodedException ce) {
-            log.warn("", ce);
+            log.error("CodedException [{}]{}", ce.getCode(), e.getMessage());
             result.put("code", ce.getCode());
         }else {
-            log.error("", e);
+            log.error("Exception {}", e.getMessage(), e);
             result.put("code", superResult.get("status"));
         }
         Locale locale = (Locale) request.attribute(ContextWebFilter.ATTRIBUTE_KEY_LOCALE).orElseGet(() -> Locale.getDefault());

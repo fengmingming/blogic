@@ -8,8 +8,9 @@ public enum TaskStatusEnum implements IDigitalizedEnum {
 
     NotStarted(10, "未开始"),
     InProgress(20, "进行中"),
-    Completed(30, "已完成"),
-    Canceled(40, "已取消"),
+    Pause(30, "暂停"),
+    Completed(90, "已完成"),
+    Canceled(95, "已取消"),
     ;
 
     TaskStatusEnum(int code,String codeDesc) {
