@@ -407,7 +407,17 @@ public class TaskRest {
     public Mono<Void> startTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
                                 @PathVariable("taskId")Long taskId, TokenInfo token, UserCurrentContext context,
                                 @RequestBody @Valid StartTaskReq req) {
-        return null;
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
+        return verifyMono.then(Mono.defer(() -> {
+            TaskService.StartTaskCommand command = new TaskService.StartTaskCommand();
+            command.setTaskId(taskId);
+            command.setStartTime(req.getStartTime());
+            command.setCurrentUserId(req.getCurrentUserId());
+            command.setOverallTime(req.getOverallTime());
+            command.setConsumeTime(req.getConsumeTime());
+            command.setRemark(req.getRemark());
+            return taskService.startTask(command);
+        }));
     }
 
 }

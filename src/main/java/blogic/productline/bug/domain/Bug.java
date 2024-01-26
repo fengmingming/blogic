@@ -120,9 +120,9 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
     /**
      * 确认
      * */
-    public void confirm(User toUser, Integer bugType, Integer priority) {
-        ObjectsTool.requireNonNull(toUser, bugType, priority);
-        this.setCurrentUserId(toUser.getId());
+    public void confirm(Long toUserId, Integer bugType, Integer priority) {
+        ObjectsTool.requireNonNull(toUserId, bugType, priority);
+        this.setCurrentUserId(toUserId);
         this.setBugType(bugType);
         this.setPriority(priority);
     }
@@ -130,8 +130,8 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
     /**
      * 指派
      * */
-    public void appoint(User toUser) {
-        this.setCurrentUserId(toUser.getId());
+    public void appoint(Long toUserId) {
+        this.setCurrentUserId(toUserId);
     }
 
     /**

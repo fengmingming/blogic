@@ -1,15 +1,11 @@
 package blogic.productline.task.domain;
 
-import blogic.changerecord.domain.ChangeRecord;
-import blogic.changerecord.domain.KeyTypeEnum;
-import blogic.core.DateTimeTool;
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
 import blogic.core.domain.LogicConsistencyException;
 import blogic.core.domain.LogicConsistencyProcessor;
 import blogic.core.enums.IDigitalizedEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
-import blogic.user.domain.User;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
@@ -18,7 +14,6 @@ import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -129,61 +124,48 @@ public class Task extends ActiveRecord<Task, Long> implements LogicConsistencyPr
         }
     }
 
-    public ChangeRecord appointTaskExecutor(User toUser, Integer consumeTime, String remark) {
-        this.setCurrentUserId(toUser.getId());
+    public void appointTaskExecutor(Long toUserId, Integer consumeTime) {
+        this.setCurrentUserId(toUserId);
         this.setConsumeTime(consumeTime + getConsumeTime());
-        return buildChangeRecord(SpringContext.getMessage("record.12.appointTask", toUser.getName(), consumeTime), remark);
     }
 
-    public ChangeRecord startTask(User toUser, LocalDateTime startTime, Integer overallTime, Integer consumeTime, String remark) {
-        Objects.requireNonNull(toUser);
+    public void startTask(Long toUserId, LocalDateTime startTime, Integer overallTime, Integer consumeTime) {
+        Objects.requireNonNull(toUserId);
         Objects.requireNonNull(startTime);
         Objects.requireNonNull(overallTime);
         Objects.requireNonNull(consumeTime);
-        this.setCurrentUserId(toUser.getId());
+        this.setCurrentUserId(toUserId);
         this.setStartTime(startTime);
         this.setOverallTime(overallTime);
         this.setConsumeTime(consumeTime);
         this.setStatus(TaskStatusEnum.InProgress.getCode());
-        return buildChangeRecord(SpringContext.getMessage("record.12.startTask", toUser.getName(), startTime.format(DateTimeTool.LOCAL_BASIC_DATETIME), overallTime, consumeTime), remark);
     }
 
-    public ChangeRecord completeTask(User toUser, Integer consumeTime, LocalDateTime completeTime, String remark) {
-        Objects.requireNonNull(toUser.getId());
+    public void completeTask(Long toUserId, Integer consumeTime, LocalDateTime completeTime) {
+        Objects.requireNonNull(toUserId);
         Objects.requireNonNull(consumeTime);
         Objects.requireNonNull(completeTime);
-        this.setCurrentUserId(toUser.getId());
+        this.setCurrentUserId(toUserId);
         this.setConsumeTime(this.getConsumeTime() + consumeTime);
         this.setCompleteTime(completeTime);
         this.setStatus(TaskStatusEnum.Completed.getCode());
-        return buildChangeRecord(SpringContext.getMessage("record.12.completeTask", toUser.getName(), consumeTime, completeTime.format(DateTimeTool.LOCAL_BASIC_DATETIME)), remark);
     }
 
-    public ChangeRecord cancelTask(String reason) {
+    public void cancelTask() {
         this.setStatus(TaskStatusEnum.Canceled.getCode());
-        return buildChangeRecord(SpringContext.getMessage("record.12.cancelTask"), reason);
     }
 
-    public ChangeRecord pauseTask(String reason) {
+    public void pauseTask() {
         this.setStatus(TaskStatusEnum.Pause.getCode());
-        return buildChangeRecord(SpringContext.getMessage("record.12.pauseTask"), reason);
     }
 
-    public ChangeRecord resumeTask(String reason) {
+    public void resumeTask() {
         this.setStatus(TaskStatusEnum.InProgress.getCode());
-        return buildChangeRecord(SpringContext.getMessage("record.12.resumeTask"), reason);
     }
 
-    public List<ChangeRecord> recordDailyPaper(List<DailyPaper> dailyPapers) {
+    public void recordDailyPaper(List<DailyPaper> dailyPapers) {
         int consumeTime = dailyPapers.stream().mapToInt(it -> it.getConsumeTime()).sum();
         this.setConsumeTime(consumeTime + this.getConsumeTime());
-        return dailyPapers.stream().sorted((a,b) -> a.getDate().compareTo(b.getDate())).map(it -> {
-            return buildChangeRecord(SpringContext.getMessage("record.12.dailyPaper", it.getDate().format(DateTimeTool.LOCAL_BASIC_DATETIME), it.getConsumeTime(), it.getRemainTime()), null);
-        }).collect(Collectors.toList());
-    }
-
-    protected ChangeRecord buildChangeRecord(String desc, String remark) {
-        return ChangeRecord.builder().keyType(KeyTypeEnum.Task.getCode()).primaryKey(getId()).operDesc(desc).note(remark).createTime(LocalDateTime.now()).build();
     }
 
 }
