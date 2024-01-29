@@ -14,6 +14,7 @@ import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.iteration.domain.repository.IterationRepository;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.requirement.domain.RequirementRepository;
+import blogic.productline.task.domain.DailyPaper;
 import blogic.productline.task.domain.QTask;
 import blogic.productline.task.domain.TaskStatusEnum;
 import blogic.productline.task.domain.repository.TaskRepository;
@@ -26,10 +27,7 @@ import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
@@ -404,9 +402,9 @@ public class TaskRest {
     }
 
     @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=start")
-    public Mono<Void> startTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId,
-                                @PathVariable("taskId")Long taskId, TokenInfo token, UserCurrentContext context,
-                                @RequestBody @Valid StartTaskReq req) {
+    public Mono<ResVo<?>> startTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, UserCurrentContext context,
+                                @PathVariable("taskId")Long taskId, @RequestBody @Valid StartTaskReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
         Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
         return verifyMono.then(Mono.defer(() -> {
             TaskService.StartTaskCommand command = new TaskService.StartTaskCommand();
@@ -417,7 +415,142 @@ public class TaskRest {
             command.setConsumeTime(req.getConsumeTime());
             command.setRemark(req.getRemark());
             return taskService.startTask(command);
-        }));
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class AppointTaskReq {
+        @NotNull
+        private Long currentUserId;
+        @NotNull
+        @Min(0)
+        private Integer consumeTime;
+        private String remark;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=appointTask")
+    public Mono<ResVo<?>> appointTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, UserCurrentContext context,
+                                   @PathVariable("taskId")Long taskId, @RequestBody @Valid AppointTaskReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
+        return verifyMono.then(Mono.defer(() -> {
+            TaskService.AppointTaskCommand command = new TaskService.AppointTaskCommand();
+            command.setTaskId(taskId);
+            command.setConsumeTime(req.getConsumeTime());
+            command.setCurrentUserId(req.getCurrentUserId());
+            command.setRemark(req.getRemark());
+            return taskService.appointTask(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class CompleteTaskReq {
+        @NotNull
+        private Long taskId;
+        @NotNull
+        private Long currentUserId;
+        @NotNull
+        @Min(0)
+        private Integer consumeTime;
+        @NotNull
+        private LocalDateTime completeTime;
+        private String remark;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=completeTask")
+    public Mono<ResVo<?>> completeTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, UserCurrentContext context,
+                                       @PathVariable("taskId")Long taskId, @RequestBody @Valid CompleteTaskReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
+        return verifyMono.then(Mono.defer(() -> {
+            TaskService.CompleteTaskCommand command = new TaskService.CompleteTaskCommand();
+            command.setTaskId(taskId);
+            command.setCompleteTime(req.getCompleteTime());
+            command.setConsumeTime(req.getConsumeTime());
+            command.setCurrentUserId(req.getCurrentUserId());
+            command.setRemark(req.getRemark());
+            return taskService.completeTask(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class CancelTaskReq {
+        private String reason;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=cancelTask")
+    public Mono<ResVo<?>> cancelTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, UserCurrentContext context,
+                                       @PathVariable("taskId")Long taskId, @RequestBody @Valid CancelTaskReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
+        return verifyMono.then(Mono.defer(() -> {
+            TaskService.CancelTaskCommand command = new TaskService.CancelTaskCommand();
+            command.setTaskId(taskId);
+            command.setReason(req.getReason());
+            return taskService.cancelTask(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class PauseTaskReq {
+        private String reason;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=pauseTask")
+    public Mono<ResVo<?>> pauseTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, UserCurrentContext context,
+                                     @PathVariable("taskId")Long taskId, @RequestBody @Valid PauseTaskReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
+        return verifyMono.then(Mono.defer(() -> {
+            TaskService.PauseTaskCommand command = new TaskService.PauseTaskCommand();
+            command.setTaskId(taskId);
+            command.setReason(req.getReason());
+            return taskService.pauseTask(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class ResumeTaskReq {
+        private String reason;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=resumeTask")
+    public Mono<ResVo<?>> resumeTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, UserCurrentContext context,
+                                    @PathVariable("taskId")Long taskId, @RequestBody @Valid ResumeTaskReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
+        return verifyMono.then(Mono.defer(() -> {
+            TaskService.ResumeTaskCommand command = new TaskService.ResumeTaskCommand();
+            command.setTaskId(taskId);
+            command.setReason(req.getReason());
+            return taskService.resumeTask(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class TaskDailyPapersReq {
+        @NotNull
+        @Size(min = 1)
+        private List<DailyPaper> dailyPapers;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=submitDailyPapers")
+    public Mono<ResVo<?>> submitDailyPapers(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, UserCurrentContext context,
+                                     @PathVariable("taskId")Long taskId, @RequestBody @Valid TaskDailyPapersReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyTaskOrThrowException(companyId, productId, null, null, taskId);
+        return verifyMono.then(Mono.defer(() -> {
+            TaskService.TaskDailyPapersCommand command = new TaskService.TaskDailyPapersCommand();
+            command.setTaskId(taskId);
+            command.setDailyPapers(req.getDailyPapers());
+            return taskService.recordDailyPapers(command);
+        })).then(Mono.just(ResVo.success()));
     }
 
 }

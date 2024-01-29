@@ -368,4 +368,104 @@ public class BugRest {
         return verifyMono.then(bugService.updateBug(command)).then(Mono.just(ResVo.success()));
     }
 
+    @Setter
+    @Getter
+    public static class ConfirmBugReq {
+        @NotNull
+        private Long currentUserId;
+        @NotNull
+        private Integer bugType;
+        @NotNull
+        private Integer priority;
+        private String remark;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Bugs/{bugId}", params = "action=confirmBug")
+    public Mono<ResVo<?>> confirmBug(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("bugId") Long bugId,
+                                     TokenInfo tokenInfo, UserCurrentContext context, @RequestBody @Valid ConfirmBugReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyBugOrThrowException(companyId, productId, null, null, null, bugId);
+        return verifyMono.then(Mono.defer(() -> {
+            BugService.ConfirmBugCommand command = new BugService.ConfirmBugCommand();
+            command.setBugId(bugId);
+            command.setCurrentUserId(req.getCurrentUserId());
+            command.setBugType(req.getBugType());
+            command.setPriority(req.getPriority());
+            command.setRemark(req.getRemark());
+            return bugService.confirm(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class AppointBugReq {
+        @NotNull
+        private Long currentUserId;
+        private String remark;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Bugs/{bugId}", params = "action=appointBug")
+    public Mono<ResVo<?>> appointBug(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("bugId") Long bugId,
+                                     TokenInfo tokenInfo, UserCurrentContext context, @RequestBody @Valid AppointBugReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyBugOrThrowException(companyId, productId, null, null, null, bugId);
+        return verifyMono.then(Mono.defer(() -> {
+            BugService.AppointBugCommand command = new BugService.AppointBugCommand();
+            command.setBugId(bugId);
+            command.setCurrentUserId(req.getCurrentUserId());
+            command.setRemark(req.getRemark());
+            return bugService.appoint(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class CloseBugReq {
+        private String remark;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Bugs/{bugId}", params = "action=closeBug")
+    public Mono<ResVo<?>> closeBug(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("bugId") Long bugId,
+                                     TokenInfo tokenInfo, UserCurrentContext context, @RequestBody @Valid CloseBugReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyBugOrThrowException(companyId, productId, null, null, null, bugId);
+        return verifyMono.then(Mono.defer(() -> {
+            BugService.CloseBugCommand command = new BugService.CloseBugCommand();
+            command.setBugId(bugId);
+            command.setRemark(req.getRemark());
+            return bugService.closeBug(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
+    @Setter
+    @Getter
+    public static class FixBugReq {
+        @NotNull
+        private Integer fixSolution;
+        @Length(max = 50)
+        private String fixVersion;
+        @NotNull
+        private LocalDateTime fixTime;
+        @NotNull
+        private Long currentUserId;
+        private String remark;
+    }
+
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Bugs/{bugId}", params = "action=fixBug")
+    public Mono<ResVo<?>> fixBug(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, @PathVariable("bugId") Long bugId,
+                                   TokenInfo tokenInfo, UserCurrentContext context, @RequestBody @Valid FixBugReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        Mono<Void> verifyMono = productLineVerifier.verifyBugOrThrowException(companyId, productId, null, null, null, bugId);
+        return verifyMono.then(Mono.defer(() -> {
+            BugService.FixBugCommand command = new BugService.FixBugCommand();
+            command.setBugId(bugId);
+            command.setCurrentUserId(req.getCurrentUserId());
+            command.setFixSolution(req.getFixSolution());
+            command.setFixVersion(req.getFixVersion());
+            command.setFixTime(req.getFixTime());
+            command.setRemark(req.getRemark());
+            return bugService.fixBug(command);
+        })).then(Mono.just(ResVo.success()));
+    }
+
 }
