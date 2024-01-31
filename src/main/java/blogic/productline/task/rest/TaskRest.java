@@ -448,8 +448,6 @@ public class TaskRest {
     @Getter
     public static class CompleteTaskReq {
         @NotNull
-        private Long taskId;
-        @NotNull
         private Long currentUserId;
         @NotNull
         @Min(0)
