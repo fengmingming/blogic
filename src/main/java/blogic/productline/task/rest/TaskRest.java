@@ -401,7 +401,7 @@ public class TaskRest {
         private String remark;
     }
 
-    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=start")
+    @PutMapping(value = "/Companies/{companyId}/Products/{productId}/Tasks/{taskId}", params="action=startTask")
     public Mono<ResVo<?>> startTask(@PathVariable("companyId")Long companyId, @PathVariable("productId")Long productId, UserCurrentContext context,
                                 @PathVariable("taskId")Long taskId, @RequestBody @Valid StartTaskReq req) {
         context.equalsCompanyIdOrThrowException(companyId);
