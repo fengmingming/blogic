@@ -20,11 +20,7 @@ public class ContextWebFilter implements WebFilter {
         }
         exchange.getAttributes().put(ATTRIBUTE_KEY_LOCALE, locale);
         Locale localeFinal = locale;
-        return chain.filter(exchange).contextWrite(c -> {
-            Context nc = Context.of(c);
-            nc.put(Locale.class, localeFinal);
-            return nc;
-        });
+        return chain.filter(exchange).contextWrite(c -> c.put(Locale.class, localeFinal));
     }
 
 }

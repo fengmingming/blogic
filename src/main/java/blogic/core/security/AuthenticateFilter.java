@@ -41,10 +41,9 @@ public class AuthenticateFilter implements WebFilter {
         String funcUrl = buildFuncUrl(request.getMethod().name(), request.getPath().value(), request.getQueryParams());
         FuncTrees reqFT = FuncTrees.buildFuncTrees(Arrays.asList(funcUrl));
         Function<Context, Context> setContextF = (c) -> {
-            Context nc = Context.of(c);
-            nc.put(UserCurrentContext.class, exchange.getAttribute(USER_CURRENT_CONTEXT_ATTRIBUTE_KEY));
-            nc.put(TokenInfo.class, exchange.getAttribute(TOKEN_INFO_ATTRIBUTE_KEY));
-            return nc;
+            c = c.put(UserCurrentContext.class, exchange.getAttribute(USER_CURRENT_CONTEXT_ATTRIBUTE_KEY));
+            c = c.put(TokenInfo.class, exchange.getAttribute(TOKEN_INFO_ATTRIBUTE_KEY));
+            return c;
         };
         Mono<Void> authenticateMono = authenticate(exchange, reqFT).switchIfEmpty(Mono.just(false)).flatMap(it -> {
             if(it) {
