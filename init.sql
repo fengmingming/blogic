@@ -325,9 +325,10 @@ INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
 INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
       VALUES
       ('bug_status', 10, '待确认', NOW()),
-      ('bug_status', 20, '处理中', NOW()),
-      ('bug_status', 30, '已修复', NOW()),
-      ('bug_status', 40, '已关闭', NOW());
+      ('bug_status', 20, '已激活', NOW()),
+      ('bug_status', 30, '已确认', NOW()),
+      ('bug_status', 40, '已解决', NOW()),
+      ('bug_status', 50, '已关闭', NOW());
 
 INSERT INTO blogic.dict (dict_type, CODE, code_desc, create_time)
    VALUES
