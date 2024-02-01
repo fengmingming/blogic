@@ -68,6 +68,7 @@ public class TaskRest {
     @Setter
     @Getter
     public static class FindTasksReq extends Paging {
+        private Long parentId;
         private Long iterationId;
         private Long requirementId;
         private String taskName;
@@ -120,6 +121,9 @@ public class TaskRest {
         Mono<Void> verifyProductIdMono = productLineVerifier.verifyProductOrThrowException(companyId, productId);
         QTask qTask = QTask.task;
         Predicate predicate = qTask.productId.eq(productId).and(qTask.deleted.eq(false));
+        if(req.getParentId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.parentId.eq(req.getParentId()));
+        }
         if(StrUtil.isNotBlank(req.getTaskName())) {
             predicate = ExpressionUtils.and(predicate, qTask.taskName.like("%" + req.getTaskName() + "%"));
         }

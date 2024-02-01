@@ -125,6 +125,7 @@ public class Bug extends ActiveRecord<Bug, Long> implements LogicConsistencyProc
         this.setCurrentUserId(toUserId);
         this.setBugType(bugType);
         this.setPriority(priority);
+        this.setStatus(BugStatusEnum.Confirmed.getCode());
     }
 
     /**

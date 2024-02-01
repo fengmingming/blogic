@@ -349,7 +349,7 @@ public class TaskService {
         Mono<Void> recordChangeMono = Mono.deferContextual(cv -> {
             TokenInfo tokenInfo = cv.get(TokenInfo.class);
             List<ChangeRecord> records = command.getDailyPapers().stream().sorted((a,b) -> a.getDate().compareTo(b.getDate())).map(it -> {
-                return buildChangeRecord(tokenInfo.getUserId(), command.getTaskId(), SpringContext.getMessage("record.12.dailyPaper", it.getDate().format(DateTimeTool.LOCAL_BASIC_DATE), it.getConsumeTime(), it.getRemainTime()), null);
+                return buildChangeRecord(tokenInfo.getUserId(), command.getTaskId(), SpringContext.getMessage("record.12.dailyPaper", it.getDate().format(DateTimeTool.LOCAL_BASIC_DATE), it.getConsumeTime(), it.getRemainTime(), it.getRemark()), null);
             }).collect(Collectors.toList());
             return changeRecordRepository.saveAll(records).then();
         });
