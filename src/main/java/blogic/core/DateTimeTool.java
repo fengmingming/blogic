@@ -6,4 +6,6 @@ public class DateTimeTool {
 
     public static final DateTimeFormatter LOCAL_BASIC_DATETIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    public static final DateTimeFormatter LOCAL_BASIC_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
 }
