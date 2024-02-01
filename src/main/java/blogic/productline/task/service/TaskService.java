@@ -64,6 +64,9 @@ public class TaskService {
         @NotNull
         @Min(0)
         private Integer overallTime;
+        @NotNull
+        @Min(0)
+        private Integer consumeTime;
         private Long createUserId;
     }
 
@@ -80,6 +83,7 @@ public class TaskService {
         task.setCurrentUserId(command.getCurrentUserId());
         task.setPriority(command.getPriority());
         task.setOverallTime(command.getOverallTime());
+        task.setConsumeTime(command.getConsumeTime());
         task.setCreateUserId(command.getCreateUserId());
         task.setCreateTime(LocalDateTime.now());
         return taskRepository.save(task);

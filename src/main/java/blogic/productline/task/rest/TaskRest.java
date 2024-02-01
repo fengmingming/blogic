@@ -261,6 +261,9 @@ public class TaskRest {
         @NotNull
         @Min(0)
         private Integer overallTime;
+        @NotNull
+        @Min(0)
+        private Integer consumeTime;
         private Long currentUserId;
     }
 
@@ -285,6 +288,7 @@ public class TaskRest {
             command.setTaskDesc(req.getTaskDesc());
             command.setPriority(req.getPriority());
             command.setOverallTime(req.getOverallTime());
+            command.setConsumeTime(req.getConsumeTime());
             command.setCreateUserId(token.getUserId());
             command.setCurrentUserId(req.getCurrentUserId());
             command.setParentId(req.getParentId());
