@@ -149,10 +149,12 @@ public class Task extends ActiveRecord<Task, Long> implements LogicConsistencyPr
         this.setConsumeTime(this.getConsumeTime() + consumeTime);
         this.setCompleteTime(completeTime);
         this.setStatus(TaskStatusEnum.Completed.getCode());
+        this.setFinalTime(LocalDateTime.now());
     }
 
     public void cancelTask() {
         this.setStatus(TaskStatusEnum.Canceled.getCode());
+        this.setFinalTime(LocalDateTime.now());
     }
 
     public void pauseTask() {
