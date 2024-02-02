@@ -3,6 +3,7 @@ package blogic.changerecord.domain;
 import blogic.changerecord.domain.repository.ChangeRecordRepository;
 import blogic.core.context.SpringContext;
 import blogic.core.domain.ActiveRecord;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
@@ -30,6 +31,7 @@ public class ChangeRecord extends ActiveRecord<ChangeRecord, Long> {
     @Column("note")
     private String note;
     @Column("create_time")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
 
     @Override

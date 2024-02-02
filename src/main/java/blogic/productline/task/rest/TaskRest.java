@@ -324,7 +324,9 @@ public class TaskRest {
         @NotNull
         @Min(0)
         private Integer consumeTime;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime startTime;
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime completeTime;
 
         @Override
@@ -461,6 +463,7 @@ public class TaskRest {
         @Min(0)
         private Integer consumeTime;
         @NotNull
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime completeTime;
         private String remark;
     }

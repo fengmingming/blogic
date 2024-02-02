@@ -445,6 +445,7 @@ public class BugRest {
         @Length(max = 50)
         private String fixVersion;
         @NotNull
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime fixTime;
         @NotNull
         private Long currentUserId;
