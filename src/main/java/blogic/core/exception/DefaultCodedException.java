@@ -15,7 +15,7 @@ public final class DefaultCodedException extends AbstractCodedException {
         super(code, t, args);
     }
 
-    public DefaultCodedException(int code, Throwable t, boolean writableStackTrace, Object... args) {
+    public DefaultCodedException(int code, Throwable t, Boolean writableStackTrace, Object... args) {
         super(code, t, writableStackTrace, args);
     }
 
@@ -29,12 +29,12 @@ public final class DefaultCodedException extends AbstractCodedException {
         return codedException;
     }
 
-    public static DefaultCodedException build(int code, Throwable t, boolean writableStackTrace, Object ... args) {
+    public static DefaultCodedException build(int code, Throwable t, Boolean writableStackTrace, Object ... args) {
         DefaultCodedException codedException = new DefaultCodedException(code, t, writableStackTrace, args);
         return codedException;
     }
 
-    public static DefaultCodedException build(int code, boolean writableStackTrace, Object ... args) {
+    public static DefaultCodedException build(int code, Boolean writableStackTrace, Object ... args) {
         DefaultCodedException codedException = new DefaultCodedException(code, null, writableStackTrace, args);
         return codedException;
     }
