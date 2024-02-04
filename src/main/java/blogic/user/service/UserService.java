@@ -5,6 +5,7 @@ import blogic.company.domain.QDepartment;
 import blogic.company.domain.repository.CompanyRepository;
 import blogic.core.MonoTool;
 import blogic.core.exception.DataChangedException;
+import blogic.core.exception.DefaultCodedException;
 import blogic.core.exception.IllegalArgumentException;
 import blogic.core.security.*;
 import blogic.core.validation.DTOLogicConsistencyVerifier;
@@ -89,32 +90,47 @@ public class UserService {
 
     @Setter
     @Getter
-    @DTOLogicValid
-    public static class UpdateUserCommand implements DTOLogicConsistencyVerifier {
+    public static class UpdateUserCommand {
         @NotNull
         private Long userId;
         @Length(max = 100)
+        @NotBlank
         private String name;
-        private String newPassword;
-        private String oldPassword;
-
-        @Override
-        public void verifyLogicConsistency() throws IllegalArgumentException {
-            if(StrUtil.isNotBlank(newPassword) && StrUtil.isBlank(oldPassword)) {
-                throw new IllegalArgumentException("oldPassword and newPassword is all blank");
-            }
-        }
+        @NotBlank
+        @Length(max = 11, min = 11)
+        private String phone;
 
     }
 
     @Transactional
     public Mono<User> updateUser(@Valid UpdateUserCommand com) {
-        return userRepository.findById(com.getUserId()).doOnNext(user -> {
+        QUser qUser = QUser.user;
+        Mono<?> verifyPhone = userRepository.query(q -> q.select(qUser.id.count())
+                .from(qUser)
+                .where(qUser.phone.eq(com.getPhone()).and(qUser.id.ne(com.getUserId())))).one()
+                .map(it -> {
+                    if(it > 0) {
+                        return Mono.error(DefaultCodedException.build(3006, false, com.getPhone()));
+                    }else {
+                        return Mono.empty();
+                    }
+                });
+        Mono<User> updateUserMono = userRepository.findById(com.getUserId()).doOnNext(user -> {
             user.setName(com.getName());
-            if(StrUtil.isNotBlank(com.getNewPassword())) {
-                user.updatePassword(com.getOldPassword(), com.getNewPassword());
-            }
+            user.setPhone(com.getPhone());
         }).flatMap(user -> userRepository.save(user));
+        return verifyPhone.then(updateUserMono);
+    }
+
+    @Transactional
+    public Mono<Void> updatePassword(Long userId, String oldPassword, String newPassword) {
+        return userRepository.findById(userId).flatMap(user -> {
+            if(!BCrypt.checkpw(oldPassword, user.getPassword())) {
+                return Mono.error(DefaultCodedException.build(3007));
+            }
+            user.setPassword(BCrypt.hashpw(newPassword));
+            return userRepository.save(user).then(Mono.empty());
+        });
     }
 
     public Mono<String> createToken(Long userId, TerminalTypeEnum terminal) {
