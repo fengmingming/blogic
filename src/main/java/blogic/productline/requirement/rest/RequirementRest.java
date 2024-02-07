@@ -7,6 +7,7 @@ import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
+import blogic.productline.infras.MyDataReq;
 import blogic.productline.product.domain.repository.ProductRepository;
 import blogic.productline.requirement.domain.QRequirement;
 import blogic.productline.requirement.domain.RequirementRepository;
@@ -99,6 +100,30 @@ public class RequirementRest {
                 return Mono.error(new ForbiddenAccessException());
             }
         }).map(it -> ResVo.success(it.getT1(), it.getT2()));
+    }
+
+    @GetMapping("/Companies/{companyId}/Products/Requirements")
+    public Mono<ResVo<?>> findMyRequirements(@PathVariable("companyId") Long companyId,
+                                           TokenInfo tokenInfo, UserCurrentContext context,
+                                           @Valid MyDataReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        tokenInfo.equalsUserIdOrThrowException(req.getCreateUserId());
+        QRequirement qRequirement = QRequirement.requirement;
+        Predicate predicate = qRequirement.deleted.eq(false).and(qRequirement.createUserId.eq(req.getCreateUserId()));
+        final Predicate predicateFinal = predicate;
+        Mono<List<FindRequirementRes>> records = requirementRepository.query(query -> {
+            QUser qUser = QUser.user;
+            return query.select(Projections.bean(FindRequirementRes.class, qRequirement, qUser.name.as("createUserName")))
+                    .from(qRequirement).leftJoin(qUser).on(qUser.id.eq(qRequirement.createUserId))
+                    .where(predicateFinal)
+                    .limit(req.getLimit()).offset(req.getOffset());
+        }).all().collectList();
+        Mono<Long> total = requirementRepository.query(query -> {
+            return query.select(qRequirement.id.count())
+                    .from(qRequirement)
+                    .where(predicateFinal);
+        }).one();
+        return Mono.zip(total, records).map(it -> ResVo.success(it.getT1(), it.getT2()));
     }
 
     @Setter

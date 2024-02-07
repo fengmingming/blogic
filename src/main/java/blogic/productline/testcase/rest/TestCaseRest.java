@@ -9,6 +9,7 @@ import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
 import blogic.core.validation.DTOLogicConsistencyVerifier;
 import blogic.core.validation.DTOLogicValid;
+import blogic.productline.infras.MyDataReq;
 import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.iteration.domain.Iteration;
 import blogic.productline.iteration.domain.repository.IterationRepository;
@@ -197,6 +198,81 @@ public class TestCaseRest {
             return Mono.just(its);
         };
         return verifyMono.then(Mono.zip(total, records.flatMap(setUserMono).flatMap(setRequirementMono).flatMap(setIterationMono)).map(it -> ResVo.success(it.getT1(), it.getT2())));
+    }
+
+    @GetMapping("/Companies/{companyId}/Products/TestCases")
+    public Mono<ResVo<?>> findMyTestCases(@PathVariable("companyId") Long companyId, TokenInfo tokenInfo,
+                                        UserCurrentContext context, @Valid MyDataReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        if(req.getCreateUserId() != null) {
+            tokenInfo.equalsUserIdOrThrowException(req.getCreateUserId());
+        }
+        if(req.getCurrentUserId() != null) {
+            tokenInfo.equalsUserIdOrThrowException(req.getCurrentUserId());
+        }
+        QTestCase qTestCase = QTestCase.testCase;
+        Predicate predicate = qTestCase.deleted.eq(false);
+        if(req.getCurrentUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTestCase.ownerUserId.eq(req.getCurrentUserId()));
+        }
+        if(req.getCreateUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTestCase.createUserId.eq(req.getCreateUserId()));
+        }
+        Predicate predicateFinal = predicate;
+        Mono<List<FindTestCasesRes>> records = testCaseRepository.query(q -> {
+            return q.select(Projections.bean(FindTestCasesRes.class, qTestCase))
+                    .from(qTestCase)
+                    .where(predicateFinal).orderBy(qTestCase.id.desc())
+                    .offset(req.getOffset()).limit(req.getLimit());
+        }).all().collectList();
+        Mono<Long> total = testCaseRepository.query(q -> {
+            return q.select(qTestCase.id.count())
+                    .from(qTestCase)
+                    .where(predicateFinal);
+        }).one();
+        Function<List<FindTestCasesRes>, Mono<List<FindTestCasesRes>>> setUserMono = (its) -> {
+            Set<Long> userIds = new HashSet<>();
+            userIds.addAll(its.stream().map(it -> it.getOwnerUserId()).filter(it -> it != null).collect(Collectors.toSet()));
+            userIds.addAll(its.stream().map(it -> it.getCreateUserId()).filter(it -> it != null).collect(Collectors.toSet()));
+            if(userIds.size() > 0) {
+                return userRepository.findAllById(userIds).collectList().map(users -> {
+                    Map<Long, String> userMap = users.stream().collect(Collectors.toMap(User::getId, User::getName));
+                    its.stream().forEach(it -> {
+                        it.setOwnerUserName(userMap.get(it.getOwnerUserId()));
+                        it.setCreateUserName(userMap.get(it.getCreateUserId()));
+                    });
+                    return its;
+                });
+            }
+            return Mono.just(its);
+        };
+        Function<List<FindTestCasesRes>, Mono<List<FindTestCasesRes>>> setRequirementMono = (its) -> {
+            Collection<Long> requirementIds = its.stream().map(it -> it.getRequirementId()).filter(it -> it != null).collect(Collectors.toSet());
+            if(requirementIds.size() > 0) {
+                return requirementRepository.findAllById(requirementIds).collectList().map(requirements -> {
+                    Map<Long, String> requirementMap = requirements.stream().collect(Collectors.toMap(Requirement::getId, Requirement::getRequirementName));
+                    its.stream().forEach(it -> {
+                        it.setRequirementName(requirementMap.get(it.getRequirementId()));
+                    });
+                    return its;
+                });
+            }
+            return Mono.just(its);
+        };
+        Function<List<FindTestCasesRes>, Mono<List<FindTestCasesRes>>> setIterationMono = (its) -> {
+            Collection<Long> iterationIds = its.stream().map(it -> it.getIterationId()).filter(it -> it != null).collect(Collectors.toSet());
+            if(iterationIds.size() > 0) {
+                return iterationRepository.findAllById(iterationIds).collectList().map(iteration -> {
+                    Map<Long, String> iterationMap = iteration.stream().collect(Collectors.toMap(Iteration::getId, Iteration::getName));
+                    its.stream().forEach(it -> {
+                        it.setIterationName(iterationMap.get(it.getIterationId()));
+                    });
+                    return its;
+                });
+            }
+            return Mono.just(its);
+        };
+        return Mono.zip(total, records.flatMap(setUserMono).flatMap(setRequirementMono).flatMap(setIterationMono)).map(it -> ResVo.success(it.getT1(), it.getT2()));
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/TestCases/{testCaseId}")

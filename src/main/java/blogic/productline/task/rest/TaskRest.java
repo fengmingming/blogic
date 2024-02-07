@@ -10,6 +10,7 @@ import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
 import blogic.core.validation.DTOLogicConsistencyVerifier;
 import blogic.core.validation.DTOLogicValid;
+import blogic.productline.infras.MyDataReq;
 import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.iteration.domain.repository.IterationRepository;
 import blogic.productline.product.domain.repository.ProductRepository;
@@ -199,6 +200,83 @@ public class TaskRest {
         }).one();
         return verifyProductIdMono.then(Mono.zip(total, records.flatMap(setUserIdFunc).flatMap(setIteration).flatMap(setRequirement))
                 .map(it -> ResVo.success(it.getT1(), it.getT2())));
+    }
+
+    @GetMapping("/Companies/{companyId}/Products/Tasks")
+    public Mono<ResVo<?>> findMyTasks(@PathVariable("companyId")Long companyId, TokenInfo tokenInfo,
+                                    UserCurrentContext context, @Valid MyDataReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        if(req.getCreateUserId() != null) {
+            tokenInfo.equalsUserIdOrThrowException(req.getCreateUserId());
+        }
+        if(req.getCurrentUserId() != null) {
+            tokenInfo.equalsUserIdOrThrowException(req.getCurrentUserId());
+        }
+        QTask qTask = QTask.task;
+        Predicate predicate = qTask.deleted.eq(false);
+        if(req.getCurrentUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.currentUserId.eq(req.getCurrentUserId()));
+        }
+        if(req.getCreateUserId() != null) {
+            predicate = ExpressionUtils.and(predicate, qTask.createUserId.eq(req.getCreateUserId()));
+        }
+        Predicate predicateFinal = predicate;
+        Mono<List<FindTasksRes>> records = taskRepository.query(q -> {
+            return q.select(Projections.bean(FindTasksRes.class, qTask))
+                    .from(qTask)
+                    .where(predicateFinal)
+                    .orderBy(qTask.createTime.desc())
+                    .offset(req.getOffset()).limit(req.getLimit());
+        }).all().collectList();
+        Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setUserIdFunc = (tasks) -> {
+            Set<Long> userIdSet = new HashSet<>();
+            userIdSet.addAll(tasks.stream().map(it -> it.getCreateUserId()).collect(Collectors.toSet()));
+            userIdSet.addAll(tasks.stream().map(it -> it.getCurrentUserId()).filter(Objects::nonNull).collect(Collectors.toSet()));
+            userIdSet.addAll(tasks.stream().map(it -> it.getCompleteUserId()).filter(Objects::nonNull).collect(Collectors.toSet()));
+            if(userIdSet.size() > 0) {
+                return userRepository.findByIdsAndToMap(userIdSet).map(it -> {
+                    tasks.stream().forEach(task -> {
+                        task.setCreateUserName(it.get(task.getCreateUserId()));
+                        task.setCurrentUserName(it.get(task.getCurrentUserId()));
+                        task.setCompleteUserName(it.get(task.getCompleteUserId()));
+                    });
+                    return tasks;
+                });
+            }else {
+                return Mono.just(tasks);
+            }
+        };
+        Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setIteration = (tasks) -> {
+            Set<Long> ids = tasks.stream().map(it -> it.getIterationId()).filter(Objects::nonNull).collect(Collectors.toSet());
+            if(ids.size() > 0) {
+                return iterationRepository.findByIdsAndToMap(ids).map(map -> {
+                    tasks.stream().forEach(task -> {
+                        task.setIterationName(map.get(task.getIterationId()));
+                    });
+                    return tasks;
+                });
+            }
+            return Mono.just(tasks);
+        };
+        Function<List<FindTasksRes>, Mono<List<FindTasksRes>>> setRequirement = (tasks) -> {
+            Set<Long> ids = tasks.stream().map(it -> it.getRequirementId()).filter(Objects::nonNull).collect(Collectors.toSet());
+            if(ids.size() > 0) {
+                return requirementRepository.findByIdsAndToMap(ids).map(map -> {
+                    tasks.stream().forEach(task -> {
+                        task.setRequirementName(map.get(task.getRequirementId()));
+                    });
+                    return tasks;
+                });
+            }
+            return Mono.just(tasks);
+        };
+        Mono<Long> total = taskRepository.query(q -> {
+            return q.select(qTask.id.count())
+                    .from(qTask)
+                    .where(predicateFinal);
+        }).one();
+        return Mono.zip(total, records.flatMap(setUserIdFunc).flatMap(setIteration).flatMap(setRequirement))
+                .map(it -> ResVo.success(it.getT1(), it.getT2()));
     }
 
     @GetMapping("/Companies/{companyId}/Products/{productId}/Tasks/{taskId}")

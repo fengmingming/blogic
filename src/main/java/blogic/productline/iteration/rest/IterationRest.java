@@ -6,6 +6,7 @@ import blogic.core.rest.Paging;
 import blogic.core.rest.ResVo;
 import blogic.core.security.TokenInfo;
 import blogic.core.security.UserCurrentContext;
+import blogic.productline.infras.MyDataReq;
 import blogic.productline.infras.ProductLineVerifier;
 import blogic.productline.iteration.domain.IterationStatusEnum;
 import blogic.productline.iteration.domain.QIteration;
@@ -130,6 +131,35 @@ public class IterationRest {
                return Mono.error(new ForbiddenAccessException());
             }
         }).map(it -> ResVo.success(it.getT1(), it.getT2()));
+    }
+
+    @GetMapping("/Companies/{companyId}/Products/Iteration")
+    public Mono<ResVo<?>> findMyIteration(@PathVariable("companyId")Long companyId, TokenInfo tokenInfo,
+                                          UserCurrentContext context, @Valid MyDataReq req) {
+        context.equalsCompanyIdOrThrowException(companyId);
+        tokenInfo.equalsUserIdOrThrowException(req.getCreateUserId());
+        QIteration qi = QIteration.iteration;
+        QProduct qp = QProduct.product;
+        QUser qu = QUser.user;
+        Predicate predicate = qi.deleted.eq(false).and(qi.createUserId.eq(req.getCreateUserId()));
+        final Predicate predicateFinal = predicate;
+        Mono<List<FindIterationRes>> records = iterationRepository.query(q -> {
+            return q.select(Projections.bean(FindIterationRes.class, qi, qp.productName, qu.name.as("createUserName")))
+                    .from(qi)
+                    .innerJoin(qp).on(qi.productId.eq(qp.id))
+                    .innerJoin(qu).on(qi.createUserId.eq(qu.id))
+                    .where(predicateFinal)
+                    .orderBy(qi.createTime.desc())
+                    .limit(req.getLimit()).offset(req.getOffset());
+        }).all().collectList();
+        Mono<Long> total = iterationRepository.query(q -> {
+            return q.select(qi.id.count())
+                    .from(qi)
+                    .innerJoin(qp).on(qi.productId.eq(qp.id))
+                    .innerJoin(qu).on(qi.createUserId.eq(qu.id))
+                    .where(predicateFinal);
+        }).one();
+        return Mono.zip(total, records).map(it -> ResVo.success(it.getT1(), it.getT2()));
     }
 
     @Setter
