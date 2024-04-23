@@ -62,7 +62,8 @@ public class ModelRest {
                                       @PathVariable("modelId") Long modelId) {
         productLineVerifier.verifyProductOrThrowException(companyId, productId);
         QModel qModel = QModel.model;
-        Mono<Model> modelMono = modelRepository.findOne(qModel.id.eq(modelId).and(qModel.productId.eq(productId)));
+        Mono<Model> modelMono = modelRepository.query(q -> q.select(qModel).from(qModel)
+                .where(qModel.id.eq(modelId).and(qModel.productId.eq(productId)))).one();
         return modelMono.map(it -> ResVo.success(it));
     }
 
@@ -93,7 +94,8 @@ public class ModelRest {
                                    @PathVariable("modelId") Long modelId, @Valid @RequestBody ModelReq req) {
         productLineVerifier.verifyProductOrThrowException(companyId, productId);
         QModel qModel = QModel.model;
-        Mono<Model> modelMono = modelRepository.findOne(qModel.id.eq(modelId).and(qModel.productId.eq(productId)));
+        Mono<Model> modelMono = modelRepository.query(q -> q.select(qModel).from(qModel)
+                .where(qModel.id.eq(modelId).and(qModel.productId.eq(productId)))).one();
         return modelMono.doOnNext(it -> {
             it.setName(req.getName());
             it.setData(req.getData());
