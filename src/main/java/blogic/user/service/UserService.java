@@ -78,13 +78,16 @@ public class UserService {
                     uc.setCompanyId(tuple.getT2().getId());
                     uc.setDef(true);
                     uc.setCreateTime(LocalDateTime.now());
-                    UserCompanyRole ucr = new UserCompanyRole();
-                    ucr.setAdmin(true);
-                    ucr.setUserId(tuple.getT1().getId());
-                    ucr.setRole(RoleEnum.ROLE_MANAGER.name());
-                    ucr.setCompanyId(tuple.getT2().getId());
-                    ucr.setCreateTime(LocalDateTime.now());
-                    return userCompanyRoleRepository.save(ucr).then(uc.save()).then(Mono.just(tuple.getT1()));
+                    List<UserCompanyRole> roles = Arrays.stream(RoleEnum.values()).map(role -> {
+                        UserCompanyRole ucr = new UserCompanyRole();
+                        ucr.setAdmin(true);
+                        ucr.setUserId(tuple.getT1().getId());
+                        ucr.setRole(role.name());
+                        ucr.setCompanyId(tuple.getT2().getId());
+                        ucr.setCreateTime(LocalDateTime.now());
+                        return ucr;
+                    }).toList();
+                    return userCompanyRoleRepository.saveAll(roles).then(uc.save()).then(Mono.just(tuple.getT1()));
                 });
     }
 
